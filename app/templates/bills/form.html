@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Bill' if mode=='edit' else 'New Bill' }}{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/bills">Bills</a> / {{ 'Edit ' ~ bill.bill_number if mode=='edit' else 'New Bill' }}</div>
+<div class="page-head"><h2>{{ 'Edit Bill ' ~ bill.bill_number if mode=='edit' else 'Create Bill' }}</h2></div>
+
+<form method="post" action="{{ '/bills/' ~ bill.bill_id ~ '/edit' if mode=='edit' else '/bills/new' }}" id="billForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if duplicate_of %}<input type="hidden" name="duplicate_of" value="{{ duplicate_of }}">{% endif %}
+  {% if convert_quotation_id %}<input type="hidden" name="convert_quotation_id" value="{{ convert_quotation_id }}">{% endif %}
+
+  <div class="card">
+    <h3>1. Patient &amp; Bill Details</h3>
+    <div class="form-grid">
+      <div class="field"><label>Patient <span class="req">*</span></label>
+        <select name="patient_id" required>
+          <option value="">-- Select patient --</option>
+          {% for p in patients %}<option value="{{ p.patient_id }}" {% if prefill.patient_id==p.patient_id %}selected{% endif %}>{{ p.patient_name }} ({{ p.mobile }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Bill Type <span class="req">*</span></label>
+        <select name="bill_type" id="bill_type">
+          <option value="service" {% if prefill.bill_type=='service' %}selected{% endif %}>Service</option>
+          <option value="equipment" {% if prefill.bill_type=='equipment' %}selected{% endif %}>Equipment</option>
+          <option value="combined" {% if prefill.bill_type=='combined' %}selected{% endif %}>Combined (Service + Equipment)</option>
+        </select>
+      </div>
+      <div class="field"><label>Bill Date <span class="req">*</span></label>
+        <input type="date" name="bill_date" value="{{ prefill.bill_date|default(today) }}" {% if not can_backdate %}min="{{ today }}" max="{{ today }}"{% endif %} required>
+        {% if not can_backdate %}<span class="hint">Back-date billing is not enabled for your account.</span>{% endif %}
+      </div>
+      {% if prefill.quotation_ref %}
+      <div class="field"><label>Quotation Ref</label><input name="quotation_ref" value="{{ prefill.quotation_ref }}" readonly></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card" id="billBuilder">
+    <h3>2. Add Service / Equipment Items</h3>
+    <script id="billBuilder-config" type="application/json">
+    {"services": {{ services|tojson }}, "equipment": {{ equipment|tojson }}, "prefill": {{ prefill_items|tojson }}}
+    </script>
+    <div id="billBuilder-items"></div>
+    <input type="hidden" name="items_json" id="billBuilder-json">
+    <div class="btn-row">
+      <button type="button" class="btn btn-accent btn-sm" id="billBuilder-add-service">+ Add Service</button>
+      <button type="button" class="btn btn-outline btn-sm" id="billBuilder-add-equipment">+ Add Equipment</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>3. Discount, Tax &amp; Charges</h3>
+    <div class="form-grid">
+      <div class="field"><label>Bill Discount (Rs.)</label><input type="number" min="0" step="0.01" name="bill_discount" id="bill_discount" value="{{ prefill.bill_discount|default(0) }}"></div>
+      <div class="field"><label>Tax Rate (%)</label><input type="number" min="0" max="100" step="0.01" name="tax_rate" id="tax_rate" value="{{ prefill.tax_rate|default(default_tax) }}"></div>
+      <div class="field"><label>Security Deposit (Rs.)</label><input type="number" min="0" step="0.01" name="deposit" id="deposit" value="{{ prefill.deposit|default(0) }}"><span class="hint">Refundable; tracked separately.</span></div>
+      <div class="field"><label>Damage Charges (Rs.)</label><input type="number" min="0" step="0.01" name="damage_charges" id="damage_charges" value="{{ prefill.damage_charges|default(0) }}"></div>
+      <div class="field"><label>Loss Charges (Rs.)</label><input type="number" min="0" step="0.01" name="loss_charges" id="loss_charges" value="{{ prefill.loss_charges|default(0) }}"></div>
+      <div class="field"><label>Other Charges (Rs.)</label><input type="number" min="0" step="0.01" name="other_charges" id="other_charges" value="{{ prefill.other_charges|default(0) }}"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea name="notes" rows="2">{{ prefill.notes|default('') }}</textarea></div>
+    <table class="totals-table">
+      <tr><td>Subtotal</td><td class="num" id="t-subtotal">Rs. 0.00</td></tr>
+      <tr><td>Discount</td><td class="num" id="t-discount">Rs. 0.00</td></tr>
+      <tr><td>Tax</td><td class="num" id="t-tax">Rs. 0.00</td></tr>
+      <tr><td>Damage Charges</td><td class="num" id="t-damage">Rs. 0.00</td></tr>
+      <tr><td>Loss Charges</td><td class="num" id="t-loss">Rs. 0.00</td></tr>
+      <tr><td>Other Charges</td><td class="num" id="t-other">Rs. 0.00</td></tr>
+      <tr><td>Security Deposit (refundable)</td><td class="num" id="t-deposit">Rs. 0.00</td></tr>
+      <tr class="grand"><td>Grand Total</td><td class="num" id="t-grand">Rs. 0.00</td></tr>
+    </table>
+  </div>
+
+  {% if mode=='new' and can('create_payment') %}
+  <div class="card">
+    <h3>4. Payment (optional, with bill)</h3>
+    <div class="form-grid">
+      <div class="field"><label>Amount (Rs.)</label><input type="number" min="0" step="0.01" name="pay_amount" value="0"></div>
+      <div class="field"><label>Method</label>
+        <select name="pay_method"><option>Cash</option><option>UPI</option><option>Bank</option></select>
+      </div>
+      <div class="field"><label>Transaction ID</label><input name="pay_transaction_id" placeholder="Required for UPI/Bank"></div>
+      <div class="field"><label>Payment Date</label><input type="date" name="pay_date" value="{{ prefill.bill_date|default(today) }}"></div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="btn-row">
+      {% if mode=='new' %}
+      <button class="btn btn-ghost" type="submit" name="action" value="preview">Preview</button>
+      <button class="btn btn-primary" type="submit" name="action" value="save">Save Bill</button>
+      {% else %}
+      <button class="btn btn-primary" type="submit">Update Bill</button>
+      {% endif %}
+      <a class="btn btn-ghost" href="{{ '/bills/' ~ bill.bill_id if mode=='edit' else '/bills' }}">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/js/bill_builder.js"></script>{% endblock %}

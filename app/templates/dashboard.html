@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_partials.html" import presets %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Dashboard</h2>
+  <div class="btn-row" style="margin:0">
+    {% if can('create_bill') %}<a class="btn btn-primary" href="/bills/new">+ New Bill</a>{% endif %}
+    {% if can('create_patient') %}<a class="btn btn-accent" href="/patients/new">+ New Patient</a>{% endif %}
+  </div>
+</div>
+
+{{ presets(preset) }}
+
+<div class="grid kpi">
+  <div class="kpi-card"><div class="label">Total Patients</div><div class="value">{{ stats.total_patients }}</div></div>
+  <div class="kpi-card teal"><div class="label">Bills (period)</div><div class="value">{{ stats.bills_count }}</div></div>
+  <div class="kpi-card green"><div class="label">Collection (period)</div><div class="value">{{ stats.collection|inr }}</div></div>
+  <div class="kpi-card amber"><div class="label">Pending Amount</div><div class="value">{{ stats.pending|inr }}</div></div>
+  <div class="kpi-card"><div class="label">Active Services</div><div class="value">{{ stats.active_services }}</div></div>
+  <div class="kpi-card teal"><div class="label">Equipment on Rent</div><div class="value">{{ stats.on_rent }}</div></div>
+  <div class="kpi-card green"><div class="label">Monthly Revenue</div><div class="value">{{ stats.month_revenue|inr }}</div></div>
+</div>
+
+<div class="card">
+  <h3>Billing vs Collection ({{ start|ddmmyyyy }} - {{ end|ddmmyyyy }})</h3>
+  <script id="chartData" type="application/json">{{ series_json|safe }}</script>
+  <canvas id="collectionChart" class="chart" height="260" aria-label="Billing vs collection chart"></canvas>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h3>Recent Bills</h3>
+    {% if recent_bills %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Bill No</th><th>Patient</th><th class="num">Amount</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for b in recent_bills %}
+        <tr>
+          <td><a href="/bills/{{ b.bill_id }}">{{ b.bill_number }}</a></td>
+          <td>{{ b.patient_name }}</td>
+          <td class="num">{{ b.grand_total|inr }}</td>
+          <td>{{ badge(b.status) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="muted">No bills found.</p>{% endif %}
+  </div>
+  <div class="card">
+    <h3>Top Pending Payments</h3>
+    {% if pending %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Bill No</th><th>Patient</th><th class="num">Pending</th></tr></thead>
+      <tbody>
+        {% for p in pending %}
+        <tr>
+          <td><a href="/bills/{{ p.bill_id }}">{{ p.bill_number }}</a></td>
+          <td>{{ p.patient_name }}</td>
+          <td class="num">{{ p.pending|inr }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    <p class="mt"><a class="btn btn-outline btn-sm" href="/reports/pending">View all pending</a></p>
+    {% else %}<p class="muted">No pending payments.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

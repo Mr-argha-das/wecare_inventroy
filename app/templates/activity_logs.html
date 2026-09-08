@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_partials.html" import pagination %}
+{% block title %}Activity Logs{% endblock %}
+{% block content %}
+<div class="page-head"><h2>Activity History</h2></div>
+<div class="card">
+  <form method="get" class="filter-bar">
+    <div class="field"><label>Action</label>
+      <select name="action"><option value="">All</option>
+      {% for a in actions %}<option value="{{ a }}" {% if action==a %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>Entity</label><input name="entity" value="{{ entity }}" placeholder="bill, patient..."></div>
+    <div class="field" style="flex:1"><label>Search</label><input name="search" value="{{ search }}" placeholder="user, description, id..."></div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+    <div class="field"><label>&nbsp;</label><a class="btn btn-ghost" href="/activity-logs">Clear</a></div>
+  </form>
+</div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th><th>Description</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.timestamp|dt }}</td>
+        <td>{{ r.username }}<br><span class="small muted">{{ r.role }}</span></td>
+        <td><strong>{{ r.action }}</strong></td>
+        <td>{{ r.entity_type }}<br><span class="small muted">{{ r.entity_id[:18] }}</span></td>
+        <td>{{ r.description }}</td>
+        <td><a class="btn btn-outline btn-sm" href="/activity-logs/{{ r.log_id }}">View Details</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {{ pagination(pg, '/activity-logs', 'action=' ~ action ~ '&entity=' ~ entity ~ '&search=' ~ search) }}
+  {% else %}
+  <div class="empty"><div class="big">&#9775;</div><p><strong>No activity found.</strong></p></div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_partials.html" import pagination, empty_state %}
+{% block title %}Staff{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Staff &amp; Permissions</h2>
+  <a class="btn btn-primary" href="/staff/new">+ Add Staff</a>
+</div>
+<div class="card">
+  <form method="get" class="filter-bar">
+    <div class="field" style="flex:1"><label>Search</label><input name="search" value="{{ search }}" placeholder="Username, name..."></div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+    <div class="field"><label>&nbsp;</label><a class="btn btn-ghost" href="/staff">Clear</a></div>
+  </form>
+</div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Permissions</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>{% for s in rows %}
+    <tr><td><strong>{{ s.username }}</strong></td><td>{{ s.full_name }}</td><td>{{ badge(s.role|capitalize) }}</td>
+    <td class="small">{% if s.role=='admin' %}All permissions{% else %}{{ s.perm_list|length }} permission(s){% endif %}</td>
+    <td>{{ badge(s.status) }}</td>
+    <td><div class="row-actions">
+      <a class="btn btn-outline btn-sm" href="/staff/{{ s.staff_id }}/edit">Edit / Permissions</a>
+      {% if s.staff_id != current_user.staff_id %}
+      <form method="post" action="/staff/{{ s.staff_id }}/toggle" data-confirm="Change status of '{{ s.username }}'?" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-ghost btn-sm" type="submit">{{ 'Deactivate' if s.status=='Active' else 'Activate' }}</button>
+      </form>
+      {% endif %}
+    </div></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {{ pagination(pg, '/staff', 'search=' ~ search) }}
+  {% else %}
+  {{ empty_state('No staff found.', '/staff/new', 'Add Staff') }}
+  {% endif %}
+</div>
+{% endblock %}

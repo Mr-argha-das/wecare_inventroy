@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-head"><h2>Reports</h2></div>
+<div class="grid three">
+  <div class="card"><h3>Daily Collection</h3><p class="muted small">Day-wise bills, cash/UPI/bank breakup and totals.</p><a class="btn btn-outline btn-sm" href="/reports/daily">Open</a></div>
+  <div class="card"><h3>Monthly Collection</h3><p class="muted small">Month-wise collection summary for a year.</p><a class="btn btn-outline btn-sm" href="/reports/monthly">Open</a></div>
+  <div class="card"><h3>Pending Payments</h3><p class="muted small">Outstanding balances by patient and bill.</p><a class="btn btn-outline btn-sm" href="/reports/pending">Open</a></div>
+  <div class="card"><h3>Service-wise</h3><p class="muted small">Quantity and revenue per service.</p><a class="btn btn-outline btn-sm" href="/reports/services">Open</a></div>
+  <div class="card"><h3>Equipment Rental</h3><p class="muted small">Rentals, deposits and returns.</p><a class="btn btn-outline btn-sm" href="/reports/equipment">Open</a></div>
+  <div class="card"><h3>Cash vs Online</h3><p class="muted small">Cash / UPI / Bank collection breakup.</p><a class="btn btn-outline btn-sm" href="/reports/cash-online">Open</a></div>
+  {% if can('view_profit_report') %}
+  <div class="card"><h3>Profit Report</h3><p class="muted small">Revenue vs deductible equipment costs.</p><a class="btn btn-outline btn-sm" href="/reports/profit">Open</a></div>
+  {% endif %}
+</div>
+{% endblock %}

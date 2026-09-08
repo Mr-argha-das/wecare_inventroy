@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Monthly Collection{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/reports">Reports</a> / Monthly Collection</div>
+<div class="page-head"><h2>Monthly Collection Report</h2>
+  <div class="btn-row no-print" style="margin:0">
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">Print</button>
+    {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/reports/monthly/pdf?year={{ year }}">PDF</a>{% endif %}
+  </div>
+</div>
+<div class="card no-print">
+  <form method="get" class="filter-bar">
+    <div class="field"><label>Year</label>
+      <select name="year">{% for y in years %}<option value="{{ y }}" {% if year==y %}selected{% endif %}>{{ y }}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+  </form>
+</div>
+<div class="card print-area">
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Month</th><th class="num">Bills</th><th class="num">Cash</th><th class="num">UPI</th><th class="num">Bank</th><th class="num">Total</th></tr></thead>
+    <tbody>{% for r in rows %}
+    <tr><td>{{ r.month }}</td><td class="num">{{ r.bills }}</td><td class="num">{{ r.cash|inr }}</td>
+    <td class="num">{{ r.upi|inr }}</td><td class="num">{{ r.bank|inr }}</td><td class="num"><strong>{{ r.total|inr }}</strong></td></tr>
+    {% endfor %}</tbody>
+    <tfoot><tr><td><strong>Total</strong></td><td></td><td class="num"><strong>{{ totals.cash|inr }}</strong></td>
+    <td class="num"><strong>{{ totals.upi|inr }}</strong></td><td class="num"><strong>{{ totals.bank|inr }}</strong></td>
+    <td class="num"><strong>{{ totals.total|inr }}</strong></td></tr></tfoot>
+  </table></div>
+</div>
+{% endblock %}

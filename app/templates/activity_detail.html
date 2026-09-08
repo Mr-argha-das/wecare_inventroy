@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Activity Detail{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/activity-logs">Activity History</a> / {{ log.log_id[:18] }}</div>
+<div class="page-head"><h2>{{ log.action }}</h2><a class="btn btn-ghost" href="/activity-logs">Back</a></div>
+<div class="card">
+  <dl class="kv">
+    <dt>Timestamp</dt><dd>{{ log.timestamp|dt }}</dd>
+    <dt>User</dt><dd>{{ log.username }} ({{ log.role }})</dd>
+    <dt>Entity</dt><dd>{{ log.entity_type }} : {{ log.entity_id }}</dd>
+    <dt>Description</dt><dd>{{ log.description }}</dd>
+    <dt>IP</dt><dd>{{ log.ip or '-' }}</dd>
+  </dl>
+</div>
+<div class="grid two">
+  <div class="card"><h3>Before</h3>{% if before %}<pre class="code">{{ before }}</pre>{% else %}<p class="muted">No before snapshot.</p>{% endif %}</div>
+  <div class="card"><h3>After</h3>{% if after %}<pre class="code">{{ after }}</pre>{% else %}<p class="muted">No after snapshot.</p>{% endif %}</div>
+</div>
+{% endblock %}

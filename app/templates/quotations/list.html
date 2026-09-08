@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_partials.html" import pagination, empty_state %}
+{% block title %}Quotations{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Quotations / Estimates</h2>
+  <a class="btn btn-primary" href="/quotations/new">+ New Quotation</a>
+</div>
+<div class="card">
+  <form method="get" class="filter-bar">
+    <div class="field" style="flex:1"><label>Search</label><input name="search" value="{{ search }}" placeholder="Quotation no, customer..."></div>
+    <div class="field"><label>Status</label>
+      <select name="status"><option value="">All</option>
+        {% for s in ['Draft','Sent','Converted','Cancelled'] %}<option value="{{ s }}" {% if status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+    <div class="field"><label>&nbsp;</label><a class="btn btn-ghost" href="/quotations">Clear</a></div>
+  </form>
+</div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th class="sortable">Number</th><th class="sortable">Date</th><th>Customer</th><th class="num">Estimate</th><th>Valid Until</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>{% for q in rows %}
+    <tr><td><a href="/quotations/{{ q.quotation_id }}"><strong>{{ q.quotation_number }}</strong></a></td>
+    <td>{{ q.quotation_date|ddmmyyyy }}</td><td>{{ q.customer_name }}</td>
+    <td class="num">{{ q.grand_total|inr }}</td><td>{{ q.valid_until|ddmmyyyy }}</td>
+    <td>{{ badge(q.status) }}</td>
+    <td><div class="row-actions">
+      <a class="btn btn-outline btn-sm" href="/quotations/{{ q.quotation_id }}">View</a>
+      {% if q.status != 'Converted' %}<a class="btn btn-ghost btn-sm" href="/quotations/{{ q.quotation_id }}/edit">Edit</a>{% endif %}
+    </div></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {{ pagination(pg, '/quotations', 'search=' ~ search ~ '&status=' ~ status) }}
+  {% else %}
+  {{ empty_state('No quotations found.', '/quotations/new', 'Create Quotation') }}
+  {% endif %}
+</div>
+{% endblock %}

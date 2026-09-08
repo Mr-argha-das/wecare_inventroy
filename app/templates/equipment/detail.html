@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ equipment.equipment_name }}{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/equipment">Equipment</a> / {{ equipment.equipment_id }}</div>
+<div class="page-head">
+  <h2>{{ equipment.equipment_name }}</h2>
+  <div class="btn-row" style="margin:0">
+    {% if can('manage_equipment') %}<a class="btn btn-outline" href="/equipment/{{ equipment.equipment_id }}/edit">Edit</a>{% endif %}
+    {% if can('manage_equipment') and equipment.status=='Available' %}
+    <button class="btn btn-primary" data-modal-open="#issueModal">Issue Equipment</button>
+    {% endif %}
+    {% if can('manage_equipment') and open_txn %}
+    <a class="btn btn-accent" href="/equipment/transactions/{{ open_txn.txn_id }}/return">Return Equipment</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h3>Details {{ badge(equipment.status) }}</h3>
+  <dl class="kv">
+    <dt>Equipment ID</dt><dd>{{ equipment.equipment_id }}</dd>
+    <dt>Serial Number</dt><dd>{{ equipment.serial_number or '-' }}</dd>
+    <dt>Description</dt><dd>{{ equipment.description or '-' }}</dd>
+    <dt>Purchase Cost</dt><dd>{{ equipment.purchase_cost|inr }}</dd>
+    <dt>Sale Price</dt><dd>{{ equipment.sale_price|inr }}</dd>
+    <dt>Daily / Weekly / Monthly</dt><dd>{{ equipment.daily_rate|inr }} / {{ equipment.weekly_rate|inr }} / {{ equipment.monthly_rate|inr }}</dd>
+  </dl>
+</div>
+
+{% if open_txn %}
+<div class="card">
+  <h3>Currently Issued</h3>
+  <dl class="kv">
+    <dt>Patient</dt><dd>{{ pnames.get(open_txn.patient_id, open_txn.patient_id) }}</dd>
+    <dt>Issue Date</dt><dd>{{ open_txn.issue_date|ddmmyyyy }}</dd>
+    <dt>Expected Return</dt><dd>{{ open_txn.expected_return_date|ddmmyyyy }}</dd>
+    <dt>Rent</dt><dd>{{ open_txn.rent_amount|inr }}</dd>
+    <dt>Deposit</dt><dd>{{ open_txn.deposit|inr }}</dd>
+  </dl>
+  <div class="btn-row">
+    {% if can('print_documents') %}<a class="btn btn-ghost btn-sm" href="/documents/equipment_issue/{{ open_txn.txn_id }}/print" target="_blank">Handover Receipt (Print)</a>{% endif %}
+    {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/documents/equipment_issue/{{ open_txn.txn_id }}/pdf">Handover PDF</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Transaction History</h3>
+  {% if txns %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Type</th><th>Patient</th><th>Issue</th><th>Expected</th><th>Return</th><th>Condition</th><th class="num">Rent</th><th class="num">Deposit</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for t in txns %}
+      <tr>
+        <td>{{ badge(t.txn_type) }}</td>
+        <td>{{ pnames.get(t.patient_id, t.patient_id) }}</td>
+        <td>{{ t.issue_date|ddmmyyyy }}</td>
+        <td>{{ t.expected_return_date|ddmmyyyy if t.expected_return_date else '-' }}</td>
+        <td>{{ t.return_date|ddmmyyyy if t.return_date else '-' }}</td>
+        <td>{{ t.condition or '-' }}</td>
+        <td class="num">{{ t.rent_amount|inr }}</td>
+        <td class="num">{{ t.deposit|inr }}</td>
+        <td><div class="row-actions">
+          {% if t.txn_type=='Issue' and can('print_documents') %}<a class="btn btn-ghost btn-sm" href="/documents/equipment_issue/{{ t.txn_id }}/print" target="_blank">Handover</a>{% endif %}
+          {% if t.txn_type=='Return' and can('print_documents') %}<a class="btn btn-ghost btn-sm" href="/documents/equipment_return/{{ t.txn_id }}/print" target="_blank">Return Receipt</a>{% endif %}
+        </div></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">No transactions yet.</p>{% endif %}
+</div>
+
+{% if can('manage_equipment') and equipment.status=='Available' %}
+<div class="modal-backdrop" id="issueModal">
+  <div class="modal">
+    <h3>Issue Equipment</h3>
+    <form method="post" action="/equipment/{{ equipment.equipment_id }}/issue">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field"><label>Patient <span class="req">*</span></label>
+        <select name="patient_id" required>
+          <option value="">-- Select patient --</option>
+          {% for p in patients %}<option value="{{ p.patient_id }}">{{ p.patient_name }} ({{ p.mobile }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Issue Date</label><input type="date" name="issue_date" value="{{ equipment.created_at[:10] }}"></div>
+        <div class="field"><label>Expected Return</label><input type="date" name="expected_return_date"></div>
+        <div class="field"><label>Rent Amount (Rs.)</label><input type="number" min="0" step="0.01" name="rent_amount" value="0"></div>
+        <div class="field"><label>Security Deposit (Rs.)</label><input type="number" min="0" step="0.01" name="deposit" value="0"></div>
+      </div>
+      <div class="field"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+        <button class="btn btn-primary" type="submit">Issue Equipment</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

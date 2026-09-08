@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block content %}
+<div class="page-head"><h2>My Profile</h2></div>
+<div class="card">
+  <dl class="kv">
+    <dt>Username</dt><dd>{{ profile.username }}</dd>
+    <dt>Full Name</dt><dd>{{ profile.full_name }}</dd>
+    <dt>Role</dt><dd>{{ profile.role|capitalize }}</dd>
+  </dl>
+</div>
+<div class="card">
+  <h3>Change Password</h3>
+  <form method="post" action="/settings/profile/password">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="form-grid">
+      <div class="field"><label>Current Password</label><input type="password" name="current_password" required></div>
+      <div class="field"><label>New Password</label><input type="password" name="new_password" required minlength="6"></div>
+      <div class="field"><label>Confirm New Password</label><input type="password" name="confirm_password" required minlength="6"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" type="submit">Change Password</button></div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+{% block content %}
+<div class="page-head"><h2>Search results for "{{ query }}"</h2></div>
+<div class="card">
+  <form action="/search" method="get" class="filter-bar">
+    <div class="field" style="flex:1"><label>Search</label><input name="q" value="{{ query }}"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Search</button></div>
+  </form>
+</div>
+<div class="card">
+  {% if query and results %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Category</th><th>Result</th><th>Details</th><th></th></tr></thead>
+    <tbody>
+      {% for r in results %}
+      <tr><td>{{ badge(r.category) }}</td><td><strong>{{ r.title }}</strong></td><td>{{ r.subtitle }}</td>
+      <td><a class="btn btn-outline btn-sm" href="{{ r.url }}">Open</a></td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% elif query %}
+  <div class="empty"><div class="big">&#128269;</div><p><strong>No results found for "{{ query }}".</strong></p></div>
+  {% else %}
+  <p class="muted">Type a search term to search across patients, bills, equipment, quotations and payments.</p>
+  {% endif %}
+</div>
+{% endblock %}

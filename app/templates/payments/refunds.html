@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_partials.html" import pagination, empty_state %}
+{% block title %}Refunds{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/payments">Payments</a> / Refunds</div>
+<div class="page-head"><h2>Refunds</h2></div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Refund ID</th><th>Date</th><th>Patient</th><th>Payment/Deposit</th><th>Method</th><th class="num">Amount</th><th>Reason</th><th>By</th></tr></thead>
+    <tbody>{% for r in rows %}
+    <tr><td>{{ r.refund_id }}</td><td>{{ r.refund_date|ddmmyyyy }}</td><td>{{ r.patient_name }}</td>
+    <td>{{ r.payment_id or r.deposit_id or '-' }}</td><td>{{ r.method }}</td><td class="num">{{ r.amount|inr }}</td>
+    <td>{{ r.reason }}</td><td>{{ r.processed_by }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {{ pagination(pg, '/refunds', '') }}
+  {% else %}
+  {{ empty_state('No refunds found.') }}
+  {% endif %}
+</div>
+{% endblock %}

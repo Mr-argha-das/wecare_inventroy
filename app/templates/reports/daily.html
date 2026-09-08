@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_partials.html" import presets %}
+{% block title %}Daily Collection{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/reports">Reports</a> / Daily Collection</div>
+<div class="page-head"><h2>Daily Collection Report</h2>
+  <div class="btn-row no-print" style="margin:0">
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">Print</button>
+    {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/reports/daily/pdf?preset={{ preset }}&start={{ start }}&end={{ end }}">PDF</a>{% endif %}
+  </div>
+</div>
+{{ presets(preset) }}
+<p class="muted">Period: {{ start|ddmmyyyy }} - {{ end|ddmmyyyy }} (canceled bills excluded; refunds shown separately)</p>
+<div class="grid kpi">
+  <div class="kpi-card"><div class="label">Bills</div><div class="value">{{ totals.bills }}</div></div>
+  <div class="kpi-card teal"><div class="label">Cash</div><div class="value">{{ totals.cash|inr }}</div></div>
+  <div class="kpi-card teal"><div class="label">UPI</div><div class="value">{{ totals.upi|inr }}</div></div>
+  <div class="kpi-card teal"><div class="label">Bank</div><div class="value">{{ totals.bank|inr }}</div></div>
+  <div class="kpi-card green"><div class="label">Total</div><div class="value">{{ totals.total|inr }}</div></div>
+  <div class="kpi-card red"><div class="label">Refunds</div><div class="value">{{ totals.refunds|inr }}</div></div>
+  <div class="kpi-card green"><div class="label">Net</div><div class="value">{{ totals.net|inr }}</div></div>
+</div>
+<div class="card print-area">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Date</th><th class="num">Bills</th><th class="num">Cash</th><th class="num">UPI</th><th class="num">Bank</th><th class="num">Total</th></tr></thead>
+    <tbody>{% for r in rows %}
+    <tr><td>{{ r.date|ddmmyyyy }}</td><td class="num">{{ r.bills }}</td><td class="num">{{ r.cash|inr }}</td>
+    <td class="num">{{ r.upi|inr }}</td><td class="num">{{ r.bank|inr }}</td><td class="num"><strong>{{ r.total|inr }}</strong></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">No collection in this period.</p>{% endif %}
+</div>
+{% endblock %}

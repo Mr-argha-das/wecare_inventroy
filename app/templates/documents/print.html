@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head no-print">
+  <h2>{{ title }}</h2>
+  <div class="btn-row" style="margin:0">
+    <button class="btn btn-primary btn-sm" onclick="window.print()">Print</button>
+    {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/documents/{{ doc_type }}/{{ ref_id }}/pdf">Download PDF</a>{% endif %}
+    {% if can('share_whatsapp') %}<a class="btn btn-whatsapp btn-sm" href="/documents/{{ doc_type }}/{{ ref_id }}/whatsapp">WhatsApp</a>{% endif %}
+    <a class="btn btn-ghost btn-sm" href="/documents">Back</a>
+  </div>
+</div>
+
+{% set c = ctx.company %}
+{% set tpl = c.template|default('A') %}
+<div class="print-area">
+<div class="doc">
+  <div class="doc-header template-{{ tpl }}">
+    <div class="doc-brand">
+      {% if c.logo %}<img src="/static/uploads/{{ c.logo }}" alt="Logo">{% endif %}
+      <div>
+        <h1>{{ c.brand_name }}</h1>
+        <div class="doc-meta">
+          {% if c.address %}{{ c.address }}<br>{% endif %}
+          {% if c.mobile %}Mobile: {{ c.mobile }}{% endif %}
+          {% if c.email %} &nbsp; Email: {{ c.email }}{% endif %}
+          {% if c.gstin %}<br>GSTIN: {{ c.gstin }}{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="doc-title-band">{{ ctx.title }}</div>
+  <div class="doc-body">
+    <div class="doc-cols">
+      <div><strong>Document No:</strong> {{ ctx.doc_number }}</div>
+      <div style="text-align:right"><strong>Date:</strong> {{ ctx.doc_date|ddmmyyyy }}</div>
+    </div>
+
+    {% if ctx.patient and ctx.patient.patient_name %}
+    <div class="doc-section-title">PATIENT DETAILS</div>
+    <div class="doc-cols">
+      <div>
+        <strong>{{ ctx.patient.patient_name }}</strong><br>
+        {% if ctx.patient.patient_id %}ID: {{ ctx.patient.patient_id }}<br>{% endif %}
+        {% if ctx.patient.mobile %}Mobile: {{ ctx.patient.mobile }}<br>{% endif %}
+        {% if ctx.patient.address %}{{ ctx.patient.address }}{% endif %}
+      </div>
+      <div>
+        {% if ctx.patient.doctor_name %}Doctor: {{ ctx.patient.doctor_name }}<br>{% endif %}
+        {% if ctx.patient.attendant_name %}Attendant: {{ ctx.patient.attendant_name }}{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if doc_type in ['service_invoice','equipment_invoice','combined_invoice','bill'] %}
+      {% set services = ctx['items']|selectattr('item_type','equalto','service')|list %}
+      {% set equipments = ctx['items']|selectattr('item_type','equalto','equipment')|list %}
+      {% for section, items in [('SERVICES', services), ('EQUIPMENT', equipments)] %}
+      {% if items %}
+      <div class="doc-section-title">{{ section }}</div>
+      <table class="doc-table">
+        <thead><tr><th>#</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Discount</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+        {% for it in items %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ it.description }}
+            {% if it.start_date or it.end_date %}<br><span class="small muted">{{ it.start_date|ddmmyyyy }} - {{ it.end_date|ddmmyyyy }}</span>{% endif %}
+            {% if it.serial_number %}<br><span class="small muted">S/N: {{ it.serial_number }}</span>{% endif %}
+          </td>
+          <td class="num">{{ it.quantity }}</td><td class="num">{{ it.rate|inr }}</td>
+          <td class="num">{{ it.discount|inr }}</td><td class="num">{{ it.amount|inr }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      {% endfor %}
+      <table class="doc-totals">
+        <tr><td>Subtotal</td><td class="num">{{ ctx.bill.subtotal|inr }}</td></tr>
+        <tr><td>Discount</td><td class="num">{{ ctx.bill.discount|inr }}</td></tr>
+        <tr><td>Tax ({{ ctx.bill.tax_rate }}%)</td><td class="num">{{ ctx.bill.tax|inr }}</td></tr>
+        <tr><td>Damage Charges</td><td class="num">{{ ctx.bill.damage_charges|inr }}</td></tr>
+        <tr><td>Loss Charges</td><td class="num">{{ ctx.bill.loss_charges|inr }}</td></tr>
+        <tr><td>Other Charges</td><td class="num">{{ ctx.bill.other_charges|inr }}</td></tr>
+        <tr><td>Security Deposit (refundable)</td><td class="num">{{ ctx.bill.deposit|inr }}</td></tr>
+        <tr><td>Received</td><td class="num">{{ (ctx.bill.received_amount - ctx.bill.refunded_amount)|inr }}</td></tr>
+        <tr><td>Pending</td><td class="num">{{ ctx.bill.remaining_amount|inr }}</td></tr>
+        <tr><td>Status</td><td class="num"><strong>{{ ctx.bill.status }}</strong></td></tr>
+        <tr class="grand"><td>TOTAL</td><td class="num">{{ ctx.bill.grand_total|inr }}</td></tr>
+      </table>
+    {% endif %}
+
+    {% if doc_type == 'payment_receipt' %}
+    <div class="doc-section-title">RECEIPT DETAILS</div>
+    <table class="doc-table">
+      <tr><th style="width:40%">Receipt No</th><td>{{ ctx.payment.payment_id }}</td></tr>
+      <tr><th>Bill No</th><td>{{ ctx.bill.bill_number }}</td></tr>
+      <tr><th>Amount Received</th><td><strong>{{ ctx.payment.amount|inr }}</strong></td></tr>
+      <tr><th>Method</th><td>{{ ctx.payment.method }}</td></tr>
+      <tr><th>Transaction ID</th><td>{{ ctx.payment.transaction_id or '-' }}</td></tr>
+      <tr><th>Received By</th><td>{{ ctx.payment.received_by }}</td></tr>
+      <tr><th>Notes</th><td>{{ ctx.payment.notes or '-' }}</td></tr>
+    </table>
+    {% endif %}
+
+    {% if doc_type == 'deposit_receipt' %}
+    <div class="doc-section-title">DEPOSIT DETAILS</div>
+    <table class="doc-table">
+      <tr><th style="width:40%">Receipt No</th><td>{{ ctx.deposit.deposit_id }}</td></tr>
+      <tr><th>Purpose</th><td>{{ ctx.deposit.purpose }}</td></tr>
+      <tr><th>Amount</th><td><strong>{{ ctx.deposit.amount|inr }}</strong></td></tr>
+      <tr><th>Method</th><td>{{ ctx.deposit.method }}</td></tr>
+      <tr><th>Transaction ID</th><td>{{ ctx.deposit.transaction_id or '-' }}</td></tr>
+      <tr><th>Status</th><td>{{ ctx.deposit.status }}</td></tr>
+      <tr><th>Notes</th><td>{{ ctx.deposit.notes or '-' }}</td></tr>
+    </table>
+    {% endif %}
+
+    {% if doc_type == 'pending_statement' %}
+    <div class="doc-section-title">OUTSTANDING BILLS</div>
+    <table class="doc-table">
+      <thead><tr><th>#</th><th>Bill No</th><th>Date</th><th class="num">Total</th><th class="num">Received</th><th class="num">Pending</th></tr></thead>
+      <tbody>{% for r in ctx.rows %}
+      <tr><td>{{ loop.index }}</td><td>{{ r.bill_number }}</td><td>{{ r.bill_date|ddmmyyyy }}</td>
+      <td class="num">{{ r.grand_total|inr }}</td><td class="num">{{ r.received|inr }}</td><td class="num">{{ r.pending|inr }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    <table class="doc-totals"><tr class="grand"><td>TOTAL PENDING</td><td class="num">{{ ctx.total_pending|inr }}</td></tr></table>
+    {% endif %}
+
+    {% if doc_type in ['equipment_issue','equipment_return'] %}
+    <div class="doc-section-title">EQUIPMENT DETAILS</div>
+    <table class="doc-table">
+      <tr><th style="width:40%">Equipment</th><td>{{ ctx.equipment.equipment_name }} ({{ ctx.equipment.equipment_id }})</td></tr>
+      <tr><th>Serial Number</th><td>{{ ctx.txn.serial_number or '-' }}</td></tr>
+      <tr><th>Issue Date</th><td>{{ ctx.txn.issue_date|ddmmyyyy }}</td></tr>
+      <tr><th>Expected Return</th><td>{{ ctx.txn.expected_return_date|ddmmyyyy }}</td></tr>
+      <tr><th>Return Date</th><td>{{ ctx.txn.return_date|ddmmyyyy if ctx.txn.return_date else '-' }}</td></tr>
+      <tr><th>Condition</th><td>{{ ctx.txn.condition or '-' }}</td></tr>
+      <tr><th>Rent Amount</th><td>{{ ctx.txn.rent_amount|inr }}</td></tr>
+      <tr><th>Security Deposit</th><td>{{ ctx.txn.deposit|inr }}</td></tr>
+      <tr><th>Damage Charge</th><td>{{ ctx.txn.damage_charge|inr }}</td></tr>
+      <tr><th>Loss Charge</th><td>{{ ctx.txn.loss_charge|inr }}</td></tr>
+      <tr><th>Refundable</th><td><strong>{{ ctx.txn.refund_amount|inr }}</strong></td></tr>
+    </table>
+    {% endif %}
+
+    {% if doc_type == 'service_agreement' %}
+    <div class="doc-section-title">AGREEMENT</div>
+    <p><strong>Agreement Ref:</strong> {{ ctx.doc_number }} &nbsp; <strong>Bill No:</strong> {{ ctx.bill.bill_number }} &nbsp; <strong>Amount:</strong> {{ ctx.bill.grand_total|inr }}</p>
+    <p style="white-space:pre-line">{{ c.terms or 'Services will be provided as per the agreed schedule.' }}</p>
+    {% endif %}
+
+    {% if doc_type == 'patient_sheet' %}
+      {% if ctx.services %}
+      <div class="doc-section-title">SERVICES</div>
+      <table class="doc-table"><thead><tr><th>Service</th><th>Start</th><th>End</th><th class="num">Qty</th><th class="num">Amount</th></tr></thead>
+      <tbody>{% for s in ctx.services %}
+      <tr><td>{{ s.service_name }}</td><td>{{ s.start_date|ddmmyyyy }}</td><td>{{ s.end_date|ddmmyyyy }}</td><td class="num">{{ s.quantity }}</td><td class="num">{{ s.amount|inr }}</td></tr>
+      {% endfor %}</tbody></table>
+      {% endif %}
+      {% if ctx.txns %}
+      <div class="doc-section-title">EQUIPMENT</div>
+      <table class="doc-table"><thead><tr><th>Equipment ID</th><th>Type</th><th>Issue</th><th>Return</th></tr></thead>
+      <tbody>{% for t in ctx.txns %}
+      <tr><td>{{ t.equipment_id }}</td><td>{{ t.txn_type }}</td><td>{{ t.issue_date|ddmmyyyy }}</td><td>{{ t.return_date|ddmmyyyy if t.return_date else '-' }}</td></tr>
+      {% endfor %}</tbody></table>
+      {% endif %}
+      {% if ctx.bills %}
+      <div class="doc-section-title">BILLS</div>
+      <table class="doc-table"><thead><tr><th>Bill No</th><th>Date</th><th class="num">Total</th><th>Status</th></tr></thead>
+      <tbody>{% for b in ctx.bills %}
+      <tr><td>{{ b.bill_number }}</td><td>{{ b.bill_date|ddmmyyyy }}</td><td class="num">{{ b.grand_total|inr }}</td><td>{{ b.status }}</td></tr>
+      {% endfor %}</tbody></table>
+      {% endif %}
+    {% endif %}
+
+    {% if doc_type == 'monthly_statement' %}
+    <div class="doc-section-title">BILLS FOR {{ ctx.month }}</div>
+    <table class="doc-table">
+      <thead><tr><th>Bill No</th><th>Date</th><th class="num">Total</th><th class="num">Received</th><th class="num">Pending</th><th>Status</th></tr></thead>
+      <tbody>{% for b in ctx.rows %}
+      <tr><td>{{ b.bill_number }}</td><td>{{ b.bill_date|ddmmyyyy }}</td><td class="num">{{ b.grand_total|inr }}</td>
+      <td class="num">{{ (b.received_amount - b.refunded_amount)|inr }}</td><td class="num">{{ b.remaining_amount|inr }}</td><td>{{ b.status }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    <table class="doc-totals"><tr class="grand"><td>MONTH TOTAL</td><td class="num">{{ ctx.total|inr }}</td></tr></table>
+    {% endif %}
+
+    {% if doc_type == 'quotation' %}
+    <div class="doc-section-title">ESTIMATE DETAILS</div>
+    <p><strong>Customer:</strong> {{ ctx.quotation.customer_name }} &nbsp; <strong>Valid Until:</strong> {{ ctx.quotation.valid_until|ddmmyyyy }}</p>
+    <table class="doc-table">
+      <thead><tr><th>#</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Discount</th><th class="num">Amount</th></tr></thead>
+      <tbody>{% for it in ctx['items'] %}
+      <tr><td>{{ loop.index }}</td><td>{{ it.description }}</td><td class="num">{{ it.quantity }}</td>
+      <td class="num">{{ it.rate|inr }}</td><td class="num">{{ it.discount|inr }}</td><td class="num">{{ it.amount|inr }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    <table class="doc-totals">
+      <tr><td>Subtotal</td><td class="num">{{ ctx.quotation.subtotal|inr }}</td></tr>
+      <tr><td>Discount</td><td class="num">{{ ctx.quotation.discount|inr }}</td></tr>
+      <tr><td>Tax ({{ ctx.quotation.tax_rate }}%)</td><td class="num">{{ ctx.quotation.tax|inr }}</td></tr>
+      <tr class="grand"><td>ESTIMATED TOTAL</td><td class="num">{{ ctx.quotation.grand_total|inr }}</td></tr>
+    </table>
+    {% if ctx.quotation.terms %}<p class="mt"><strong>Terms:</strong> {{ ctx.quotation.terms }}</p>{% endif %}
+    {% endif %}
+  </div>
+  <div class="doc-foot">
+    {% if c.bank_details or c.upi_details %}
+    <div class="doc-section-title">PAYMENT DETAILS</div>
+    {% if c.bank_details %}<p style="white-space:pre-line">{{ c.bank_details }}</p>{% endif %}
+    {% if c.upi_details %}<p>UPI: {{ c.upi_details }}</p>{% endif %}
+    {% endif %}
+    {% if c.terms and doc_type != 'service_agreement' %}
+    <div class="doc-section-title">TERMS &amp; CONDITIONS</div>
+    <p style="white-space:pre-line">{{ c.terms }}</p>
+    {% endif %}
+    <div class="doc-sign">
+      <div>Received By</div>
+      <div>For {{ c.brand_name }}<br>{{ c.signature_name }}</div>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}

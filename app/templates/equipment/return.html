@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Return Equipment{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/equipment">Equipment</a> / <a href="/equipment/{{ equipment.equipment_id }}">{{ equipment.equipment_id }}</a> / Return</div>
+<div class="page-head"><h2>Return Equipment</h2></div>
+<div class="card">
+  <dl class="kv">
+    <dt>Equipment</dt><dd>{{ equipment.equipment_name }} ({{ equipment.equipment_id }})</dd>
+    <dt>Serial Number</dt><dd>{{ txn.serial_number or '-' }}</dd>
+    <dt>Patient</dt><dd>{{ patient.patient_name|default(txn.patient_id) }}</dd>
+    <dt>Issue Date</dt><dd>{{ txn.issue_date|ddmmyyyy }}</dd>
+    <dt>Expected Return</dt><dd>{{ txn.expected_return_date|ddmmyyyy }}</dd>
+    <dt>Rent Amount</dt><dd>{{ txn.rent_amount|inr }}</dd>
+    <dt>Security Deposit</dt><dd>{{ txn.deposit|inr }}</dd>
+  </dl>
+</div>
+<div class="card">
+  <form method="post" action="/equipment/transactions/{{ txn.txn_id }}/return">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="form-grid">
+      <div class="field"><label>Actual Return Date <span class="req">*</span></label><input type="date" name="return_date" value="{{ txn.expected_return_date or txn.issue_date }}" required></div>
+      <div class="field"><label>Condition <span class="req">*</span></label>
+        <select name="condition" id="condition">
+          {% for c in conditions %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select>
+        <span class="hint">Good &rarr; Available, Damaged &rarr; Damaged, Lost &rarr; Lost</span>
+      </div>
+      <div class="field"><label>Damage Charge (Rs.)</label><input type="number" min="0" step="0.01" name="damage_charge" id="damage_charge" value="0"></div>
+      <div class="field"><label>Loss Charge (Rs.)</label><input type="number" min="0" step="0.01" name="loss_charge" id="loss_charge" value="0"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
+    <div class="card" style="background:#f6f9fc">
+      <strong>Deposit settlement preview:</strong>
+      <div>Deposit: {{ txn.deposit|inr }} &nbsp;|&nbsp; Refundable: <strong id="refund-preview">{{ txn.deposit|inr }}</strong> &nbsp;|&nbsp; Extra due: <strong id="due-preview">Rs. 0.00</strong></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">Confirm Return</button>
+      <a class="btn btn-ghost" href="/equipment/{{ equipment.equipment_id }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% block scripts %}
+<script>
+(function(){
+  var dep = {{ txn.deposit|default(0) }};
+  function upd(){
+    var d = parseFloat(document.getElementById('damage_charge').value)||0;
+    var l = parseFloat(document.getElementById('loss_charge').value)||0;
+    var ref = Math.max(0, dep - d - l), due = Math.max(0, d + l - dep);
+    document.getElementById('refund-preview').textContent = 'Rs. ' + ref.toFixed(2);
+    document.getElementById('due-preview').textContent = 'Rs. ' + due.toFixed(2);
+  }
+  document.getElementById('damage_charge').addEventListener('input', upd);
+  document.getElementById('loss_charge').addEventListener('input', upd);
+})();
+</script>
+{% endblock %}
+{% endblock %}

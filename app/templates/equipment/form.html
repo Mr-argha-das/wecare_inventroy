@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if mode=='edit' else 'Add' }} Equipment{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/equipment">Equipment</a> / {{ 'Edit' if mode=='edit' else 'Add' }}</div>
+<div class="page-head"><h2>{{ 'Edit Equipment' if mode=='edit' else 'Add Equipment' }}</h2></div>
+<div class="card">
+  <form method="post" action="{{ '/equipment/' ~ equipment.equipment_id ~ '/edit' if mode=='edit' else '/equipment/new' }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if mode=='edit' %}<p><strong>Equipment ID:</strong> {{ equipment.equipment_id }}</p>{% endif %}
+    <div class="form-grid">
+      <div class="field"><label>Equipment Name <span class="req">*</span></label><input name="equipment_name" value="{{ equipment.equipment_name|default('') }}" required></div>
+      <div class="field"><label>Serial Number</label><input name="serial_number" value="{{ equipment.serial_number|default('') }}"></div>
+      <div class="field"><label>Purchase Cost (Rs.)</label><input name="purchase_cost" type="number" min="0" step="0.01" value="{{ equipment.purchase_cost|default(0) }}"></div>
+      <div class="field"><label>Sale Price (Rs.)</label><input name="sale_price" type="number" min="0" step="0.01" value="{{ equipment.sale_price|default(0) }}"></div>
+      <div class="field"><label>Daily Rent (Rs.)</label><input name="daily_rate" type="number" min="0" step="0.01" value="{{ equipment.daily_rate|default(0) }}"></div>
+      <div class="field"><label>Weekly Rent (Rs.)</label><input name="weekly_rate" type="number" min="0" step="0.01" value="{{ equipment.weekly_rate|default(0) }}"></div>
+      <div class="field"><label>Monthly Rent (Rs.)</label><input name="monthly_rate" type="number" min="0" step="0.01" value="{{ equipment.monthly_rate|default(0) }}"></div>
+      {% if mode=='edit' %}
+      <div class="field"><label>Status</label>
+        <select name="status">
+          {% for s in statuses %}<option value="{{ s }}" {% if equipment.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    <div class="field"><label>Description</label><textarea name="description" rows="3">{{ equipment.description|default('') }}</textarea></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">{{ 'Update Equipment' if mode=='edit' else 'Create Equipment' }}</button>
+      <a class="btn btn-ghost" href="/equipment">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

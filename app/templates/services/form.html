@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if mode=='edit' else 'Add' }} Service{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/services">Services</a> / {{ 'Edit' if mode=='edit' else 'Add' }}</div>
+<div class="page-head"><h2>{{ 'Edit Service' if mode=='edit' else 'Add Service' }}</h2></div>
+<div class="card">
+  <form method="post" action="{{ '/services/' ~ service.service_id ~ '/edit' if mode=='edit' else '/services/new' }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if mode=='edit' %}<p><strong>Service ID:</strong> {{ service.service_id }}</p>{% endif %}
+    <div class="form-grid">
+      <div class="field"><label>Service Name <span class="req">*</span></label><input name="service_name" value="{{ service.service_name|default('') }}" required></div>
+      <div class="field"><label>Default Rate (Rs.) <span class="req">*</span></label><input name="default_rate" type="number" min="0" step="0.01" value="{{ service.default_rate|default(0) }}" required></div>
+      <div class="field"><label>Billing Type <span class="req">*</span></label>
+        <select name="billing_type">
+          {% for b in billing_types %}<option value="{{ b }}" {% if service.billing_type==b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+        </select>
+      </div>
+      {% if mode=='edit' %}
+      <div class="field"><label>Status</label>
+        <select name="status">
+          <option value="Active" {% if service.status=='Active' %}selected{% endif %}>Active</option>
+          <option value="Inactive" {% if service.status=='Inactive' %}selected{% endif %}>Inactive</option>
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    <div class="field"><label>Description</label><textarea name="description" rows="3">{{ service.description|default('') }}</textarea></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">{{ 'Update Service' if mode=='edit' else 'Create Service' }}</button>
+      <a class="btn btn-ghost" href="/services">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

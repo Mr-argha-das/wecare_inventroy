@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_partials.html" import pagination, empty_state %}
+{% block title %}Bills{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Billing</h2>
+  {% if can('create_bill') %}<a class="btn btn-primary" href="/bills/new">+ New Bill</a>{% endif %}
+</div>
+<div class="grid kpi">
+  <div class="kpi-card"><div class="label">Billed (filtered)</div><div class="value">{{ totals.grand|inr }}</div></div>
+  <div class="kpi-card green"><div class="label">Received</div><div class="value">{{ totals.received|inr }}</div></div>
+  <div class="kpi-card amber"><div class="label">Pending</div><div class="value">{{ totals.pending|inr }}</div></div>
+</div>
+<div class="card">
+  <form method="get" class="filter-bar">
+    <div class="field" style="flex:1;min-width:200px"><label>Search</label><input name="search" value="{{ search }}" placeholder="Bill no, patient, mobile, patient ID..."></div>
+    <div class="field"><label>Status</label>
+      <select name="status"><option value="">All</option>
+        {% for s in ['Paid','Partial','Pending','Canceled'] %}<option value="{{ s }}" {% if status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>Type</label>
+      <select name="bill_type"><option value="">All</option>
+        {% for t in ['service','equipment','combined'] %}<option value="{{ t }}" {% if bill_type==t %}selected{% endif %}>{{ t|capitalize }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>From</label><input type="date" name="start" value="{{ start }}"></div>
+    <div class="field"><label>To</label><input type="date" name="end" value="{{ end }}"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+    <div class="field"><label>&nbsp;</label><a class="btn btn-ghost" href="/bills">Clear</a></div>
+  </form>
+</div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th class="sortable">Bill No</th><th class="sortable">Date</th><th>Patient</th><th>Type</th><th class="num">Amount</th><th class="num">Received</th><th class="num">Pending</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for b in rows %}
+      <tr>
+        <td><a href="/bills/{{ b.bill_id }}"><strong>{{ b.bill_number }}</strong></a></td>
+        <td>{{ b.bill_date|ddmmyyyy }}</td>
+        <td>{{ b.patient_name }}</td>
+        <td>{{ b.bill_type|capitalize }}</td>
+        <td class="num">{{ b.grand_total|inr }}</td>
+        <td class="num">{{ (b.received_amount - b.refunded_amount)|inr }}</td>
+        <td class="num">{{ b.remaining_amount|inr }}</td>
+        <td>{{ badge(b.status) }}</td>
+        <td><div class="row-actions">
+          <a class="btn btn-outline btn-sm" href="/bills/{{ b.bill_id }}">View</a>
+          {% if can('edit_bill') and not b.cancelled %}<a class="btn btn-ghost btn-sm" href="/bills/{{ b.bill_id }}/edit">Edit</a>{% endif %}
+        </div></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {{ pagination(pg, '/bills', 'search=' ~ search ~ '&status=' ~ status ~ '&bill_type=' ~ bill_type ~ '&start=' ~ start ~ '&end=' ~ end) }}
+  {% else %}
+  {{ empty_state('No bills found.', '/bills/new' if can('create_bill') else '', 'Create Bill') }}
+  {% endif %}
+</div>
+{% endblock %}

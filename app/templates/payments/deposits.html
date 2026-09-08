@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "_partials.html" import pagination, empty_state %}
+{% block title %}Deposits{% endblock %}
+{% block content %}
+<div class="page-head"><h2>Advances &amp; Security Deposits</h2>
+  {% if can('create_payment') %}<button class="btn btn-primary" data-modal-open="#depModal">+ New Deposit</button>{% endif %}
+</div>
+<div class="grid kpi"><div class="kpi-card teal"><div class="label">Available (page)</div><div class="value">{{ held|inr }}</div></div></div>
+<div class="card">
+  <form method="get" class="filter-bar">
+    <div class="field" style="flex:1"><label>Search</label><input name="search" value="{{ search }}" placeholder="Deposit ID, patient..."></div>
+    <div class="field"><label>Status</label>
+      <select name="status"><option value="">All</option>
+        {% for s in ['Held','Partial','Adjusted','Refunded'] %}<option value="{{ s }}" {% if status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+    <div class="field"><label>&nbsp;</label><a class="btn btn-ghost" href="/deposits">Clear</a></div>
+  </form>
+</div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Deposit ID</th><th>Date</th><th>Patient</th><th>Purpose</th><th class="num">Amount</th><th class="num">Adjusted</th><th class="num">Refunded</th><th class="num">Available</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>{% for d in rows %}
+    <tr><td>{{ d.deposit_id }}</td><td>{{ d.deposit_date|ddmmyyyy }}</td><td>{{ d.patient_name }}</td>
+    <td>{{ d.purpose }}</td><td class="num">{{ d.amount|inr }}</td><td class="num">{{ d.adjusted_amount|inr }}</td>
+    <td class="num">{{ d.refunded_amount|inr }}</td><td class="num"><strong>{{ d.available|inr }}</strong></td>
+    <td>{{ badge(d.status) }}</td>
+    <td><div class="row-actions">
+      {% if can('print_documents') %}<a class="btn btn-ghost btn-sm" href="/documents/deposit_receipt/{{ d.deposit_id }}/print" target="_blank">Receipt</a>{% endif %}
+      {% if can('create_payment') and d.available > 0 %}<button class="btn btn-outline btn-sm" data-modal-open="#adj-{{ d.deposit_id }}">Adjust to Bill</button>{% endif %}
+      {% if can('refund_payment') and d.available > 0 %}<button class="btn btn-danger btn-sm" data-modal-open="#ref-{{ d.deposit_id }}">Refund</button>{% endif %}
+    </div></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {{ pagination(pg, '/deposits', 'search=' ~ search ~ '&status=' ~ status) }}
+  {% else %}
+  {{ empty_state('No deposits found.') }}
+  {% endif %}
+</div>
+
+{% if can('create_payment') %}
+<div class="modal-backdrop" id="depModal">
+  <div class="modal">
+    <h3>New Advance / Deposit</h3>
+    <form method="post" action="/deposits/new">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field"><label>Patient <span class="req">*</span></label>
+        <select name="patient_id" required><option value="">-- Select --</option>
+        {% for p in patients %}<option value="{{ p.patient_id }}">{{ p.patient_name }} ({{ p.mobile }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Purpose</label><select name="purpose"><option>Advance</option><option>Security Deposit</option></select></div>
+        <div class="field"><label>Amount (Rs.) <span class="req">*</span></label><input type="number" min="0.01" step="0.01" name="amount" required></div>
+        <div class="field"><label>Method</label><select name="method"><option>Cash</option><option>UPI</option><option>Bank</option></select></div>
+        <div class="field"><label>Date</label><input type="date" name="deposit_date" value="{{ today }}"></div>
+      </div>
+      <div class="field"><label>Transaction ID</label><input name="transaction_id"></div>
+      <div class="field"><label>Notes</label><input name="notes"></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+        <button class="btn btn-primary" type="submit">Record Deposit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% for d in rows %}
+{% if d.available > 0 %}
+<div class="modal-backdrop" id="adj-{{ d.deposit_id }}">
+  <div class="modal">
+    <h3>Adjust {{ d.deposit_id }} to Bill</h3>
+    <p>Available: <strong>{{ d.available|inr }}</strong></p>
+    <form method="post" action="/deposits/{{ d.deposit_id }}/adjust">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field"><label>Bill <span class="req">*</span></label>
+        <select name="bill_id" required>
+          <option value="">-- Select pending bill --</option>
+          {% for b in pending_bills.get(d.patient_id, []) %}
+          <option value="{{ b.bill_id }}">{{ b.bill_number }} (pending {{ b.remaining|inr }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Amount (Rs.) <span class="req">*</span></label><input type="number" min="0.01" step="0.01" name="amount" value="{{ d.available }}" required></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+        <button class="btn btn-primary" type="submit">Adjust</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% if can('refund_payment') and d.available > 0 %}
+<div class="modal-backdrop" id="ref-{{ d.deposit_id }}">
+  <div class="modal">
+    <h3>Refund {{ d.deposit_id }}</h3>
+    <form method="post" action="/deposits/{{ d.deposit_id }}/refund">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-grid">
+        <div class="field"><label>Amount (Rs.)</label><input type="number" min="0.01" step="0.01" name="amount" value="{{ d.available }}" required></div>
+        <div class="field"><label>Method</label><select name="method"><option>Cash</option><option>UPI</option><option>Bank</option></select></div>
+      </div>
+      <div class="field"><label>Transaction ID</label><input name="transaction_id"></div>
+      <div class="field"><label>Reason <span class="req">*</span></label><textarea name="reason" rows="2" required></textarea></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+        <button class="btn btn-danger" type="submit">Refund</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endblock %}
