@@ -48,7 +48,7 @@
 <div class="card">
   <h3>Line Items</h3>
   <div class="table-wrap"><table class="data">
-    <thead><tr><th>#</th><th>Description</th><th>Type</th><th>Period</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Discount</th><th class="num">Amount</th></tr></thead>
+    <thead><tr><th>#</th><th>Description</th><th>Type</th><th>Period</th><th class="num">Qty / Days</th><th class="num">Rate</th><th class="num">Discount</th><th class="num">Amount</th></tr></thead>
     <tbody>
       {% for it in items %}
       <tr>
@@ -56,23 +56,35 @@
         <td>{{ it.description }}{% if it.serial_number %}<br><span class="small muted">S/N: {{ it.serial_number }}</span>{% endif %}</td>
         <td>{{ it.item_type|capitalize }}{% if it.billing_type %} ({{ it.billing_type }}){% endif %}</td>
         <td>{% if it.start_date %}{{ it.start_date|ddmmyyyy }} - {{ it.end_date|ddmmyyyy }}{% else %}-{% endif %}</td>
-        <td class="num">{{ it.quantity }}</td><td class="num">{{ it.rate|inr }}</td>
+        <td class="num">
+          {% if it.unit_type == 'days' %}
+            {{ '%g'|format(it.days) }} Days
+          {% else %}
+            {{ '%g'|format(it.quantity) }} Qty
+          {% endif %}
+        </td>
+        <td class="num">{{ it.rate|inr }}</td>
         <td class="num">{{ it.discount|inr }}</td><td class="num">{{ it.amount|inr }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table></div>
+
+  {# Saari rows hamesha dikhti hain (value 0 ho tab bhi), jaisa form / preview me. #}
   <table class="totals-table mt">
     <tr><td>Subtotal</td><td class="num">{{ bill.subtotal|inr }}</td></tr>
     <tr><td>Discount</td><td class="num">{{ bill.discount|inr }}</td></tr>
-    <tr><td>Tax ({{ bill.tax_rate }}%)</td><td class="num">{{ bill.tax|inr }}</td></tr>
+    <tr><td>Taxable Amount</td><td class="num">{{ (bill.taxable_amount or (bill.subtotal - bill.discount))|inr }}</td></tr>
+    <tr><td>CGST</td><td class="num">{{ bill.cgst|inr }}</td></tr>
+    <tr><td>SGST</td><td class="num">{{ bill.sgst|inr }}</td></tr>
+    <tr><td>IGST</td><td class="num">{{ bill.igst|inr }}</td></tr>
+    <tr><td>Tax ({{ '%g'|format(bill.gst_rate or bill.tax_rate or 0) }}%)</td><td class="num">{{ bill.tax|inr }}</td></tr>
     <tr><td>Damage Charges</td><td class="num">{{ bill.damage_charges|inr }}</td></tr>
     <tr><td>Loss Charges</td><td class="num">{{ bill.loss_charges|inr }}</td></tr>
     <tr><td>Other Charges</td><td class="num">{{ bill.other_charges|inr }}</td></tr>
-    <tr><td>Security Deposit (refundable)</td><td class="num">{{ bill.deposit|inr }}</td></tr>
+    <tr class="grand"><td>Grand Total</td><td class="num">{{ bill.grand_total|inr }}</td></tr>
     <tr><td>Received</td><td class="num">{{ (bill.received_amount - bill.refunded_amount)|inr }}</td></tr>
     <tr><td>Remaining</td><td class="num">{{ bill.remaining_amount|inr }}</td></tr>
-    <tr class="grand"><td>Grand Total</td><td class="num">{{ bill.grand_total|inr }}</td></tr>
   </table>
 </div>
 

@@ -72,6 +72,15 @@ SCHEMAS: dict[str, dict[str, object]] = {
         "bill_date": "",
         "subtotal": 0.0,
         "discount": 0.0,
+        # ---- GST fields (NEW) ----
+        "taxable_amount": 0.0,
+        "gst_applicable": False,
+        "gst_type": "CGST_SGST",  # CGST_SGST | IGST
+        "gst_rate": 0.0,
+        "cgst": 0.0,
+        "sgst": 0.0,
+        "igst": 0.0,
+        # ---- legacy tax fields ----
         "tax_rate": 0.0,
         "tax": 0.0,
         "deposit": 0.0,
@@ -103,7 +112,12 @@ SCHEMAS: dict[str, dict[str, object]] = {
         "start_date": "",
         "end_date": "",
         "billing_type": "",
+        # ---- Qty / Days basis (NEW) ----
+        "unit_type": "qty",  # qty | days
+        "charge_mode": "qty",
         "quantity": 0.0,
+        "days": 0.0,
+        "units": 0.0,
         "rate": 0.0,
         "discount": 0.0,
         "amount": 0.0,
@@ -236,7 +250,10 @@ SCHEMAS: dict[str, dict[str, object]] = {
         "start_date": "",
         "end_date": "",
         "billing_type": "",
+        # ---- Qty / Days basis (NEW) ----
+        "unit_type": "qty",
         "quantity": 0.0,
+        "days": 0.0,
         "rate": 0.0,
         "amount": 0.0,
         "status": "Active",
@@ -324,7 +341,8 @@ def _normalize_frame(name: str, df: pd.DataFrame) -> pd.DataFrame:
                 df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
             else:
                 df[col] = df[col].fillna("").astype(str)
-                df.loc[df[col].isin({"nan", "None", "NaT"})] = ""
+                # FIX: only blank this column's cell, NOT the whole row.
+                df.loc[df[col].isin({"nan", "None", "NaT"}), col] = ""
         except Exception:
             pass
     return df.reset_index(drop=True)
