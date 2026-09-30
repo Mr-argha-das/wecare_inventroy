@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-head"><h2>Settings</h2></div>
+<div data-tabs-scope>
+  <div class="tabs no-print" data-tabs>
+    <button type="button" class="active" data-tab="company">Company &amp; Brand</button>
+    <button type="button" data-tab="billing">Billing &amp; GST</button>
+    <button type="button" data-tab="documents">Documents</button>
+    <button type="button" data-tab="backup">Backup</button>
+  </div>
+
+  <div class="card" data-tab-panel="company">
+    <h3>Company / Brand Settings</h3>
+    <form method="post" action="/settings/company" id="companyFull">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-grid">
+        <div class="field"><label>Brand Name <span class="req">*</span></label><input name="brand_name" value="{{ company.brand_name|default('WE CARE HOME HEALTHCARE') }}" required></div>
+        <div class="field"><label>Mobile Numbers</label><input name="mobile" value="{{ company.mobile|default('') }}" placeholder="e.g. 98765 43210, 91234 56780"></div>
+        <div class="field"><label>Email</label><input name="email" value="{{ company.email|default('') }}"></div>
+        <div class="field"><label>GSTIN</label><input name="gstin" value="{{ company.gstin|default('') }}"></div>
+        <div class="field"><label>Default GST Rate (%)</label><input type="number" min="0" max="100" step="0.01" name="gst_rate" value="{{ company.gst_rate|default('0') }}"></div>
+        <div class="field"><label>Signature Name</label><input name="signature_name" value="{{ company.signature_name|default('Authorized Signatory') }}"></div>
+      </div>
+      <div class="field"><label>Office Address</label><textarea name="address" rows="2">{{ company.address|default('') }}</textarea></div>
+      <div class="field"><label>Bank Details</label><textarea name="bank_details" rows="3" placeholder="Bank name, account no, IFSC, branch">{{ company.bank_details|default('') }}</textarea></div>
+      <div class="field"><label>UPI Details</label><input name="upi_details" value="{{ company.upi_details|default('') }}" placeholder="e.g. wecare@upi"></div>
+      <div class="field"><label>Invoice Terms &amp; Conditions</label><textarea name="terms" rows="5">{{ company.terms|default('') }}</textarea></div>
+      <div class="btn-row"><button class="btn btn-primary" type="submit">Save Company Settings</button></div>
+    </form>
+    <h3 class="mt">Logo</h3>
+    {% if company.logo %}<p><img src="/static/uploads/{{ company.logo }}" alt="Company logo" style="max-height:80px;border:1px solid var(--border);border-radius:8px;padding:6px;background:#fff"></p>{% endif %}
+    <form method="post" action="/settings/logo" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field"><label>Upload Logo (PNG/JPG/JPEG/WEBP, max 5 MB)</label><input type="file" name="logo" accept=".png,.jpg,.jpeg,.webp" required></div>
+      <div class="btn-row"><button class="btn btn-outline" type="submit">Upload Logo</button></div>
+    </form>
+  </div>
+
+  <div class="card" data-tab-panel="billing" style="display:none">
+    <h3>Billing, GST &amp; Payment Methods</h3>
+    <dl class="kv">
+      <dt>Default GST Rate</dt><dd>{{ company.gst_rate|default('0') }}% (applied as default on new bills; editable per bill)</dd>
+      <dt>Payment Methods</dt><dd>Cash, UPI, Bank (UPI/Bank require Transaction ID)</dd>
+      <dt>Currency</dt><dd>₹ (INR), dates in DD/MM/YYYY, timezone Asia/Kolkata</dd>
+      <dt>Back-date Billing</dt><dd>Controlled by the <em>allow_backdate_billing</em> permission (Staff page). All back-dated bills are logged.</dd>
+    </dl>
+    <p class="mt"><a class="btn btn-outline btn-sm" href="/staff">Manage Staff Permissions</a></p>
+  </div>
+
+  <div class="card" data-tab-panel="documents" style="display:none">
+    <h3>Invoice Templates</h3>
+    <form method="post" action="/settings/documents">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-grid">
+        {% for t in ['A','B','C'] %}
+        <label class="card" style="cursor:pointer">
+          <input type="radio" name="template" value="{{ t }}" {% if docs.template|default('A')==t %}checked{% endif %}>
+          <strong>Template {{ t }}</strong>
+          <span class="small muted">{% if t=='A' %}Classic blue header{% elif t=='B' %}Gradient banner header{% else %}Bordered card header{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="btn-row"><button class="btn btn-primary" type="submit">Save Template</button></div>
+    </form>
+    <p class="small muted">Logo, brand name, address, contact, GST, bank/UPI, terms and signature are pulled automatically from Company settings.</p>
+  </div>
+
+  <div class="card" data-tab-panel="backup" style="display:none">
+    <h3>Backup</h3>
+    <p class="muted">Creates a timestamped backup of all Feather data files and uploads under <code>backups/</code>. Backups are not publicly accessible.</p>
+    <form method="post" action="/settings/backup">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-primary" type="submit">Create Backup Now</button>
+    </form>
+    <h4 class="mt">Recent Backups</h4>
+    {% if backups %}
+    <ul>{% for b in backups %}<li><code>{{ b }}</code></li>{% endfor %}</ul>
+    {% else %}<p class="muted">No backups yet.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

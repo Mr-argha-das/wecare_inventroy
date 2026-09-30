@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_partials.html" import pagination, empty_state %}
+{% block title %}Services{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Services</h2>
+  {% if can('manage_services') %}<a class="btn btn-primary" href="/services/new">+ Add Service</a>{% endif %}
+</div>
+<div class="card">
+  <form method="get" class="filter-bar">
+    <div class="field" style="flex:1"><label>Search</label><input name="search" value="{{ search }}" placeholder="Service name or ID..."></div>
+    <div class="field"><label>Status</label>
+      <select name="status"><option value="">All</option>
+        <option value="Active" {% if status=='Active' %}selected{% endif %}>Active</option>
+        <option value="Inactive" {% if status=='Inactive' %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+    <div class="field"><label>&nbsp;</label><a class="btn btn-ghost" href="/services">Clear</a></div>
+  </form>
+</div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th class="sortable">Service ID</th><th class="sortable">Name</th><th>Billing Type</th><th class="num">Default Rate</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for s in rows %}
+      <tr>
+        <td>{{ s.service_id }}</td>
+        <td><strong>{{ s.service_name }}</strong>{% if s.description %}<br><span class="small muted">{{ s.description }}</span>{% endif %}</td>
+        <td>{{ s.billing_type }}</td>
+        <td class="num">{{ s.default_rate|inr }}</td>
+        <td>{{ badge(s.status) }}</td>
+        <td><div class="row-actions">
+          {% if can('manage_services') %}
+          <a class="btn btn-outline btn-sm" href="/services/{{ s.service_id }}/edit">Edit</a>
+          <form method="post" action="/services/{{ s.service_id }}/toggle" data-confirm="Change status of '{{ s.service_name }}'?" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-ghost btn-sm" type="submit">{{ 'Deactivate' if s.status=='Active' else 'Activate' }}</button>
+          </form>
+          {% endif %}
+        </div></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {{ pagination(pg, '/services', 'search=' ~ search ~ '&status=' ~ status) }}
+  {% else %}
+  {{ empty_state('No services found.', '/services/new' if can('manage_services') else '', 'Add Service') }}
+  {% endif %}
+</div>
+{% endblock %}

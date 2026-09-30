@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}{{ bill.bill_number }}{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/bills">Bills</a> / {{ bill.bill_number }}</div>
+<div class="page-head">
+  <h2>{{ bill.bill_number }} {{ badge(bill.status) }}</h2>
+</div>
+
+<div class="card no-print">
+  <div class="btn-row" style="margin:0">
+    {% if can('edit_bill') and not bill.cancelled %}<a class="btn btn-outline btn-sm" href="/bills/{{ bill.bill_id }}/edit">Edit</a>{% endif %}
+    {% if can('duplicate_bill') %}<a class="btn btn-ghost btn-sm" href="/bills/{{ bill.bill_id }}/duplicate">Duplicate</a>{% endif %}
+    {% if can('cancel_bill') and not bill.cancelled %}<button class="btn btn-danger btn-sm" data-modal-open="#cancelModal">Cancel Bill</button>{% endif %}
+    {% if can('print_documents') %}
+    <a class="btn btn-ghost btn-sm" href="/documents/{% if bill.bill_type=='service' %}service_invoice{% elif bill.bill_type=='equipment' %}equipment_invoice{% else %}combined_invoice{% endif %}/{{ bill.bill_id }}/print" target="_blank">Print</a>
+    {% endif %}
+    {% if can('generate_pdf') %}
+    <a class="btn btn-ghost btn-sm" href="/documents/{% if bill.bill_type=='service' %}service_invoice{% elif bill.bill_type=='equipment' %}equipment_invoice{% else %}combined_invoice{% endif %}/{{ bill.bill_id }}/pdf">PDF</a>
+    {% endif %}
+    {% if can('share_whatsapp') %}<a class="btn btn-whatsapp btn-sm" href="/bills/{{ bill.bill_id }}/whatsapp">WhatsApp</a>{% endif %}
+    {% if can('create_payment') and not bill.cancelled %}<button class="btn btn-primary btn-sm" data-modal-open="#payModal">+ Payment</button>{% endif %}
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h3>Bill Information</h3>
+    <dl class="kv">
+      <dt>Bill Number</dt><dd>{{ bill.bill_number }}</dd>
+      <dt>Bill Date</dt><dd>{{ bill.bill_date|ddmmyyyy }}</dd>
+      <dt>Type</dt><dd>{{ bill.bill_type|capitalize }}</dd>
+      <dt>Created By</dt><dd>{{ bill.created_by or '-' }}</dd>
+      <dt>Notes</dt><dd>{{ bill.notes or '-' }}</dd>
+      {% if bill.quotation_ref %}<dt>Quotation Ref</dt><dd>{{ bill.quotation_ref }}</dd>{% endif %}
+    </dl>
+  </div>
+  <div class="card">
+    <h3>Patient</h3>
+    <dl class="kv">
+      <dt>Name</dt><dd><a href="/patients/{{ patient.patient_id }}">{{ patient.patient_name }}</a></dd>
+      <dt>Patient ID</dt><dd>{{ patient.patient_id }}</dd>
+      <dt>Mobile</dt><dd>{{ patient.mobile }}</dd>
+      <dt>Address</dt><dd>{{ patient.address or '-' }}</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Line Items</h3>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>#</th><th>Description</th><th>Type</th><th>Period</th><th class="num">Qty / Days</th><th class="num">Rate</th><th class="num">Discount</th><th class="num">Amount</th></tr></thead>
+    <tbody>
+      {% for it in items %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ it.description }}{% if it.serial_number %}<br><span class="small muted">S/N: {{ it.serial_number }}</span>{% endif %}</td>
+        <td>{{ it.item_type|capitalize }}{% if it.billing_type %} ({{ it.billing_type }}){% endif %}</td>
+        <td>{% if it.start_date %}{{ it.start_date|ddmmyyyy }} - {{ it.end_date|ddmmyyyy }}{% else %}-{% endif %}</td>
+        <td class="num">
+          {% if it.unit_type == 'days' %}
+            {{ '%g'|format(it.days) }} Days
+          {% else %}
+            {{ '%g'|format(it.quantity) }} Qty
+          {% endif %}
+        </td>
+        <td class="num">{{ it.rate|inr }}</td>
+        <td class="num">{{ it.discount|inr }}</td><td class="num">{{ it.amount|inr }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+
+  {# Saari rows hamesha dikhti hain (value 0 ho tab bhi), jaisa form / preview me. #}
+  <table class="totals-table mt">
+    <tr><td>Subtotal</td><td class="num">{{ bill.subtotal|inr }}</td></tr>
+    <tr><td>Discount</td><td class="num">{{ bill.discount|inr }}</td></tr>
+    <tr><td>Taxable Amount</td><td class="num">{{ (bill.taxable_amount or (bill.subtotal - bill.discount))|inr }}</td></tr>
+    <tr><td>CGST</td><td class="num">{{ bill.cgst|inr }}</td></tr>
+    <tr><td>SGST</td><td class="num">{{ bill.sgst|inr }}</td></tr>
+    <tr><td>IGST</td><td class="num">{{ bill.igst|inr }}</td></tr>
+    <tr><td>Tax ({{ '%g'|format(bill.gst_rate or bill.tax_rate or 0) }}%)</td><td class="num">{{ bill.tax|inr }}</td></tr>
+    <tr><td>Damage Charges</td><td class="num">{{ bill.damage_charges|inr }}</td></tr>
+    <tr><td>Loss Charges</td><td class="num">{{ bill.loss_charges|inr }}</td></tr>
+    <tr><td>Other Charges</td><td class="num">{{ bill.other_charges|inr }}</td></tr>
+    <tr class="grand"><td>Grand Total</td><td class="num">{{ bill.grand_total|inr }}</td></tr>
+    <tr><td>Received</td><td class="num">{{ (bill.received_amount - bill.refunded_amount)|inr }}</td></tr>
+    <tr><td>Remaining</td><td class="num">{{ bill.remaining_amount|inr }}</td></tr>
+  </table>
+</div>
+
+{% if bill.cancelled %}
+<div class="card" style="border-color:var(--danger)">
+  <h3>Cancellation Details</h3>
+  <dl class="kv">
+    <dt>Cancelled By</dt><dd>{{ bill.cancelled_by }}</dd>
+    <dt>Cancelled At</dt><dd>{{ bill.cancelled_at|dt }}</dd>
+    <dt>Reason</dt><dd>{{ bill.cancel_reason or '-' }}</dd>
+  </dl>
+</div>
+{% endif %}
+
+<div data-tabs-scope>
+  <div class="tabs no-print" data-tabs>
+    <button type="button" class="active" data-tab="payhistory">Payment History ({{ payments|length }})</button>
+    <button type="button" data-tab="deposits">Deposits ({{ deposits|length }})</button>
+    <button type="button" data-tab="activity">Activity History ({{ logs|length }})</button>
+  </div>
+  <div class="card" data-tab-panel="payhistory">
+    <p><strong>Total Bill:</strong> {{ bill.grand_total|inr }} &nbsp;|&nbsp; <strong>Received:</strong> {{ (bill.received_amount - bill.refunded_amount)|inr }} &nbsp;|&nbsp; <strong>Remaining:</strong> {{ bill.remaining_amount|inr }}</p>
+    {% if payments %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Date</th><th>Payment ID</th><th>Method</th><th>Txn ID</th><th class="num">Amount</th><th>Received By</th><th></th></tr></thead>
+      <tbody>{% for p in payments %}
+      <tr><td>{{ p.payment_date|ddmmyyyy }}</td><td>{{ p.payment_id }}</td><td>{{ p.method }}</td>
+      <td>{{ p.transaction_id or '-' }}</td><td class="num">{{ p.amount|inr }}</td><td>{{ p.received_by }}</td>
+      <td><div class="row-actions">
+        <a class="btn btn-outline btn-sm" href="/payments/{{ p.payment_id }}">Open</a>
+        {% if can('print_documents') %}<a class="btn btn-ghost btn-sm" href="/documents/payment_receipt/{{ p.payment_id }}/print" target="_blank">Receipt</a>{% endif %}
+      </div></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No payments yet.</p>{% endif %}
+    {% if refunds %}
+    <h4 class="mt">Refunds</h4>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Date</th><th>Refund ID</th><th class="num">Amount</th><th>Reason</th><th>By</th></tr></thead>
+      <tbody>{% for r in refunds %}
+      <tr><td>{{ r.refund_date|ddmmyyyy }}</td><td>{{ r.refund_id }}</td><td class="num">{{ r.amount|inr }}</td><td>{{ r.reason }}</td><td>{{ r.processed_by }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+  </div>
+  <div class="card" data-tab-panel="deposits" style="display:none">
+    {% if deposits %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Deposit ID</th><th>Date</th><th>Purpose</th><th class="num">Amount</th><th>Status</th></tr></thead>
+      <tbody>{% for d in deposits %}
+      <tr><td>{{ d.deposit_id }}</td><td>{{ d.deposit_date|ddmmyyyy }}</td><td>{{ d.purpose }}</td><td class="num">{{ d.amount|inr }}</td><td>{{ badge(d.status) }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No deposits linked.</p>{% endif %}
+  </div>
+  <div class="card" data-tab-panel="activity" style="display:none">
+    {% if logs %}
+    <div class="timeline">
+      {% for l in logs %}
+      <div class="event"><strong>{{ l.action }}</strong> <span class="small muted">{{ l.timestamp|dt }} by {{ l.username }}</span><br>{{ l.description }}
+      {% if can('view_activity_logs') %}<br><a class="btn btn-ghost btn-sm mt" href="/activity-logs/{{ l.log_id }}">View Details</a>{% endif %}</div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="muted">No activity recorded.</p>{% endif %}
+  </div>
+</div>
+
+{% if can('create_payment') and not bill.cancelled %}
+<div class="modal-backdrop" id="payModal">
+  <div class="modal">
+    <h3>Add Payment</h3>
+    <p>Pending: <strong>{{ bill.remaining_amount|inr }}</strong></p>
+    <form method="post" action="/bills/{{ bill.bill_id }}/payment">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-grid">
+        <div class="field"><label>Amount (Rs.) <span class="req">*</span></label><input type="number" min="0.01" step="0.01" name="amount" value="{{ bill.remaining_amount }}" required></div>
+        <div class="field"><label>Method <span class="req">*</span></label>
+          <select name="method"><option>Cash</option><option>UPI</option><option>Bank</option></select>
+        </div>
+        <div class="field"><label>Date</label><input type="date" name="payment_date" value="{{ today }}"></div>
+        <div class="field"><label>Transaction ID</label><input name="transaction_id" placeholder="Required for UPI/Bank"></div>
+      </div>
+      <div class="field"><label>Notes</label><input name="notes"></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+        <button class="btn btn-primary" type="submit">Record Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if can('cancel_bill') and not bill.cancelled %}
+<div class="modal-backdrop" id="cancelModal">
+  <div class="modal">
+    <h3>Cancel Bill</h3>
+    <p>Are you sure you want to cancel bill <strong>{{ bill.bill_number }}</strong>?</p>
+    <p class="muted">This action cannot be undone. The bill will remain in history as Canceled.</p>
+    <form method="post" action="/bills/{{ bill.bill_id }}/cancel">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field"><label>Reason</label><textarea name="cancel_reason" rows="2" placeholder="Cancellation reason (optional)"></textarea></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-modal-close>Close</button>
+        <button class="btn btn-danger" type="submit">Confirm Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

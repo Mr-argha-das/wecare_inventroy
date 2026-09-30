@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ quotation.quotation_number }}{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/quotations">Quotations</a> / {{ quotation.quotation_number }}</div>
+<div class="page-head"><h2>{{ quotation.quotation_number }} {{ badge(quotation.status) }}</h2></div>
+<div class="card no-print"><div class="btn-row" style="margin:0">
+  {% if quotation.status != 'Converted' %}
+  <a class="btn btn-outline btn-sm" href="/quotations/{{ quotation.quotation_id }}/edit">Edit</a>
+  {% if can('create_bill') %}<a class="btn btn-primary btn-sm" href="/quotations/{{ quotation.quotation_id }}/convert">Convert to Bill</a>{% endif %}
+  {% endif %}
+  <form method="post" action="/quotations/{{ quotation.quotation_id }}/duplicate" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="btn btn-ghost btn-sm" type="submit">Duplicate</button>
+  </form>
+  {% if can('print_documents') %}<a class="btn btn-ghost btn-sm" href="/documents/quotation/{{ quotation.quotation_id }}/print" target="_blank">Print</a>{% endif %}
+  {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/documents/quotation/{{ quotation.quotation_id }}/pdf">PDF</a>{% endif %}
+  {% if can('share_whatsapp') %}<a class="btn btn-whatsapp btn-sm" href="/documents/quotation/{{ quotation.quotation_id }}/whatsapp">WhatsApp</a>{% endif %}
+</div></div>
+<div class="card">
+  <dl class="kv">
+    <dt>Customer</dt><dd>{{ quotation.customer_name }}{% if patient.patient_id %} (<a href="/patients/{{ patient.patient_id }}">{{ patient.patient_id }}</a>){% endif %}</dd>
+    <dt>Date</dt><dd>{{ quotation.quotation_date|ddmmyyyy }}</dd>
+    <dt>Valid Until</dt><dd>{{ quotation.valid_until|ddmmyyyy }}</dd>
+    {% if quotation.converted_bill_number %}<dt>Converted Bill</dt><dd>{{ quotation.converted_bill_number }}</dd>{% endif %}
+    <dt>Terms</dt><dd>{{ quotation.terms or '-' }}</dd>
+    <dt>Notes</dt><dd>{{ quotation.notes or '-' }}</dd>
+  </dl>
+</div>
+<div class="card">
+  <h3>Items</h3>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>#</th><th>Description</th><th>Type</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Discount</th><th class="num">Amount</th></tr></thead>
+    <tbody>{% for it in items %}
+    <tr><td>{{ loop.index }}</td><td>{{ it.description }}</td><td>{{ it.item_type|capitalize }}</td>
+    <td class="num">{{ it.quantity }}</td><td class="num">{{ it.rate|inr }}</td><td class="num">{{ it.discount|inr }}</td><td class="num">{{ it.amount|inr }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <table class="totals-table mt">
+    <tr><td>Subtotal</td><td class="num">{{ quotation.subtotal|inr }}</td></tr>
+    <tr><td>Discount</td><td class="num">{{ quotation.discount|inr }}</td></tr>
+    <tr><td>Tax ({{ quotation.tax_rate }}%)</td><td class="num">{{ quotation.tax|inr }}</td></tr>
+    <tr class="grand"><td>Estimated Total</td><td class="num">{{ quotation.grand_total|inr }}</td></tr>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Documents{% endblock %}
+{% block content %}
+<div class="page-head"><h2>Documents</h2></div>
+<p class="muted">Generate professional print / PDF documents from live records. All documents use the latest company branding from Settings.</p>
+<div data-tabs-scope>
+  <div class="tabs no-print" data-tabs>
+    <button type="button" class="active" data-tab="bills">Invoices</button>
+    <button type="button" data-tab="receipts">Receipts</button>
+    <button type="button" data-tab="patients">Patient Docs</button>
+    <button type="button" data-tab="equipment">Equipment Docs</button>
+    <button type="button" data-tab="quotations">Quotations</button>
+  </div>
+  <div class="card" data-tab-panel="bills">
+    <h3>Recent Bills</h3>
+    {% if recent_bills %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Bill No</th><th>Patient</th><th class="num">Amount</th><th>Status</th><th>Documents</th></tr></thead>
+      <tbody>{% for b in recent_bills %}
+      {% set dt = 'service_invoice' if b.bill_type=='service' else ('equipment_invoice' if b.bill_type=='equipment' else 'combined_invoice') %}
+      <tr><td><a href="/bills/{{ b.bill_id }}">{{ b.bill_number }}</a></td><td>{{ b.patient_name }}</td>
+      <td class="num">{{ b.grand_total|inr }}</td><td>{{ badge(b.status) }}</td>
+      <td><div class="row-actions">
+        <a class="btn btn-ghost btn-sm" href="/documents/{{ dt }}/{{ b.bill_id }}/print" target="_blank">Invoice (Print)</a>
+        {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/documents/{{ dt }}/{{ b.bill_id }}/pdf">Invoice PDF</a>{% endif %}
+        {% if b.bill_type != 'equipment' %}<a class="btn btn-ghost btn-sm" href="/documents/service_agreement/{{ b.bill_id }}/print" target="_blank">Agreement</a>{% endif %}
+      </div></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No bills yet.</p>{% endif %}
+  </div>
+  <div class="card" data-tab-panel="receipts" style="display:none">
+    <h3>Payment Receipts</h3>
+    {% if recent_payments %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Payment ID</th><th>Date</th><th class="num">Amount</th><th>Documents</th></tr></thead>
+      <tbody>{% for p in recent_payments %}
+      <tr><td>{{ p.payment_id }}</td><td>{{ p.payment_date|ddmmyyyy }}</td><td class="num">{{ p.amount|inr }}</td>
+      <td><div class="row-actions">
+        <a class="btn btn-ghost btn-sm" href="/documents/payment_receipt/{{ p.payment_id }}/print" target="_blank">Print</a>
+        {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/documents/payment_receipt/{{ p.payment_id }}/pdf">PDF</a>{% endif %}
+      </div></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No payments yet.</p>{% endif %}
+    <h3 class="mt">Deposit Receipts</h3>
+    {% if recent_deposits %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Deposit ID</th><th>Date</th><th class="num">Amount</th><th>Documents</th></tr></thead>
+      <tbody>{% for d in recent_deposits %}
+      <tr><td>{{ d.deposit_id }}</td><td>{{ d.deposit_date|ddmmyyyy }}</td><td class="num">{{ d.amount|inr }}</td>
+      <td><div class="row-actions">
+        <a class="btn btn-ghost btn-sm" href="/documents/deposit_receipt/{{ d.deposit_id }}/print" target="_blank">Print</a>
+        {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/documents/deposit_receipt/{{ d.deposit_id }}/pdf">PDF</a>{% endif %}
+      </div></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No deposits yet.</p>{% endif %}
+  </div>
+  <div class="card" data-tab-panel="patients" style="display:none">
+    <h3>Patient Statements</h3>
+    {% if patients %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Patient</th><th>Mobile</th><th>Documents</th></tr></thead>
+      <tbody>{% for p in patients %}
+      <tr><td>{{ p.patient_name }}</td><td>{{ p.mobile }}</td>
+      <td><div class="row-actions">
+        <a class="btn btn-ghost btn-sm" href="/documents/pending_statement/{{ p.patient_id }}/print" target="_blank">Pending Statement</a>
+        <a class="btn btn-ghost btn-sm" href="/documents/patient_sheet/{{ p.patient_id }}/print" target="_blank">Service Sheet</a>
+        <a class="btn btn-ghost btn-sm" href="/documents/monthly_statement/{{ p.patient_id }}/print" target="_blank">Monthly Statement</a>
+      </div></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No patients yet.</p>{% endif %}
+  </div>
+  <div class="card" data-tab-panel="equipment" style="display:none">
+    <h3>Equipment Receipts</h3>
+    {% if recent_txns %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Type</th><th>Equipment</th><th>Date</th><th>Documents</th></tr></thead>
+      <tbody>{% for t in recent_txns %}
+      <tr><td>{{ t.txn_type }}</td><td>{{ t.equipment_id }}</td><td>{{ (t.return_date or t.issue_date)|ddmmyyyy }}</td>
+      <td><div class="row-actions">
+        {% if t.txn_type=='Issue' %}<a class="btn btn-ghost btn-sm" href="/documents/equipment_issue/{{ t.txn_id }}/print" target="_blank">Handover</a>
+        {% else %}<a class="btn btn-ghost btn-sm" href="/documents/equipment_return/{{ t.txn_id }}/print" target="_blank">Return Receipt</a>{% endif %}
+      </div></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No equipment transactions yet.</p>{% endif %}
+  </div>
+  <div class="card" data-tab-panel="quotations" style="display:none">
+    <h3>Quotations</h3>
+    {% if recent_quotations %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Number</th><th>Customer</th><th class="num">Estimate</th><th>Documents</th></tr></thead>
+      <tbody>{% for q in recent_quotations %}
+      <tr><td><a href="/quotations/{{ q.quotation_id }}">{{ q.quotation_number }}</a></td><td>{{ q.customer_name }}</td>
+      <td class="num">{{ q.grand_total|inr }}</td>
+      <td><div class="row-actions">
+        <a class="btn btn-ghost btn-sm" href="/documents/quotation/{{ q.quotation_id }}/print" target="_blank">Print</a>
+        {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/documents/quotation/{{ q.quotation_id }}/pdf">PDF</a>{% endif %}
+      </div></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No quotations yet.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

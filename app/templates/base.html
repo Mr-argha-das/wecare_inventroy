@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Dashboard{% endblock %} | {{ app_name }}</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<link rel="stylesheet" href="/static/css/print.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+{% macro badge(status) -%}
+<span class="badge b-{{ (status or '')|lower|replace(' ', '')|replace('_', '') }}">{{ status or '-' }}</span>
+{%- endmacro %}
+
+<header class="topbar no-print">
+  <button class="hamburger" data-sidebar-toggle aria-label="Menu">&#9776;</button>
+  <a class="brand" href="/" style="text-decoration:none">
+    <span class="logo-mark">&#10010;</span>
+    <span>WE CARE<small>HOME HEALTHCARE</small></span>
+  </a>
+  <form class="search-global" action="/search" method="get" role="search">
+    <input type="search" name="q" placeholder="Global search: patients, bills, equipment, quotations, payments..." value="{{ query|default('') }}" aria-label="Global search">
+  </form>
+  <div class="userbox">
+    {% if current_user %}
+    <span class="avatar">{{ (current_user.full_name or current_user.username or 'U')[0]|upper }}</span>
+    <span><strong>{{ current_user.full_name or current_user.username }}</strong><br><span class="small muted">{{ current_user.role|capitalize }}</span></span>
+    <a class="btn btn-ghost btn-sm" href="/settings/profile">Profile</a>
+    <a class="btn btn-outline btn-sm" href="/auth/logout">Logout</a>
+    {% endif %}
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar no-print" id="sidebar" aria-label="Main navigation">
+    {% if can('view_dashboard') %}<a href="/" class="{% if active_nav=='dashboard' %}active{% endif %}"><span class="nav-icon">&#8962;</span> Dashboard</a>{% endif %}
+    <div class="nav-section">Care</div>
+    {% if can('view_patients') %}<a href="/patients" class="{% if active_nav=='patients' %}active{% endif %}"><span class="nav-icon">&#9825;</span> Patients</a>{% endif %}
+    {% if can('view_services') %}<a href="/services" class="{% if active_nav=='services' %}active{% endif %}"><span class="nav-icon">&#9877;</span> Services</a>{% endif %}
+    {% if can('view_equipment') %}<a href="/equipment" class="{% if active_nav=='equipment' %}active{% endif %}"><span class="nav-icon">&#9855;</span> Equipment</a>{% endif %}
+    <div class="nav-section">Billing</div>
+    {% if can('create_bill') %}<a href="/bills" class="{% if active_nav=='bills' %}active{% endif %}"><span class="nav-icon">&#9773;</span> Billing</a>{% endif %}
+    {% if can('view_payments') %}<a href="/payments" class="{% if active_nav=='payments' %}active{% endif %}"><span class="nav-icon">&#8377;</span> Payments</a>{% endif %}
+    {% if can('view_payments') %}<a href="/deposits" class="{% if active_nav=='deposits' %}active{% endif %}"><span class="nav-icon">&#9742;</span> Deposits</a>{% endif %}
+    {% if can('manage_quotations') %}<a href="/quotations" class="{% if active_nav=='quotations' %}active{% endif %}"><span class="nav-icon">&#9998;</span> Quotations</a>{% endif %}
+    <div class="nav-section">Insights</div>
+    {% if can('view_reports') %}<a href="/reports" class="{% if active_nav=='reports' %}active{% endif %}"><span class="nav-icon">&#9774;</span> Reports</a>{% endif %}
+    {% if can('print_documents') %}<a href="/documents" class="{% if active_nav=='documents' %}active{% endif %}"><span class="nav-icon">&#128196;</span> Documents</a>{% endif %}
+    {% if can('view_activity_logs') %}<a href="/activity-logs" class="{% if active_nav=='activity' %}active{% endif %}"><span class="nav-icon">&#9775;</span> Activity Logs</a>{% endif %}
+    <div class="nav-section">Admin</div>
+    {% if can('manage_staff') %}<a href="/staff" class="{% if active_nav=='staff' %}active{% endif %}"><span class="nav-icon">&#9823;</span> Staff</a>{% endif %}
+    {% if can('manage_settings') %}<a href="/settings" class="{% if active_nav=='settings' %}active{% endif %}"><span class="nav-icon">&#9881;</span> Settings</a>{% endif %}
+  </nav>
+
+  <main class="main">
+    {% if flashes %}
+    <div class="flashes no-print">
+      {% for f in flashes %}
+      <div class="flash flash-{{ f.category }}">{{ f.message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

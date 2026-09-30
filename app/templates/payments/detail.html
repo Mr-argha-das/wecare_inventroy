@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ payment.payment_id }}{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/payments">Payments</a> / {{ payment.payment_id }}</div>
+<div class="page-head"><h2>Payment {{ payment.payment_id }}</h2>
+  <div class="btn-row" style="margin:0">
+    {% if can('print_documents') %}<a class="btn btn-ghost" href="/documents/payment_receipt/{{ payment.payment_id }}/print" target="_blank">Print Receipt</a>{% endif %}
+    {% if can('generate_pdf') %}<a class="btn btn-ghost" href="/documents/payment_receipt/{{ payment.payment_id }}/pdf">Receipt PDF</a>{% endif %}
+    {% if can('refund_payment') %}<button class="btn btn-danger" data-modal-open="#refundModal">Refund</button>{% endif %}
+  </div>
+</div>
+<div class="card">
+  <dl class="kv">
+    <dt>Bill</dt><dd><a href="/bills/{{ bill.bill_id }}">{{ bill.bill_number|default(payment.bill_id) }}</a></dd>
+    <dt>Patient</dt><dd><a href="/patients/{{ patient.patient_id }}">{{ patient.patient_name|default(payment.patient_id) }}</a></dd>
+    <dt>Date</dt><dd>{{ payment.payment_date|ddmmyyyy }}</dd>
+    <dt>Method</dt><dd>{{ payment.method }}</dd>
+    <dt>Amount</dt><dd><strong>{{ payment.amount|inr }}</strong></dd>
+    <dt>Transaction ID</dt><dd>{{ payment.transaction_id or '-' }}</dd>
+    <dt>Notes</dt><dd>{{ payment.notes or '-' }}</dd>
+    <dt>Received By</dt><dd>{{ payment.received_by }}</dd>
+  </dl>
+</div>
+{% if refunds %}
+<div class="card"><h3>Refunds against this payment</h3>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Refund ID</th><th>Date</th><th class="num">Amount</th><th>Reason</th><th>By</th></tr></thead>
+    <tbody>{% for r in refunds %}
+    <tr><td>{{ r.refund_id }}</td><td>{{ r.refund_date|ddmmyyyy }}</td><td class="num">{{ r.amount|inr }}</td><td>{{ r.reason }}</td><td>{{ r.processed_by }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
+{% if can('refund_payment') %}
+<div class="modal-backdrop" id="refundModal">
+  <div class="modal">
+    <h3>Refund Payment</h3>
+    <p>Original payment: <strong>{{ payment.amount|inr }}</strong>. Original records are never deleted; the refund is logged separately.</p>
+    <form method="post" action="/payments/{{ payment.payment_id }}/refund">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-grid">
+        <div class="field"><label>Amount (Rs.) <span class="req">*</span></label><input type="number" min="0.01" step="0.01" name="amount" value="{{ payment.amount }}" required></div>
+        <div class="field"><label>Method</label><select name="method"><option>Cash</option><option>UPI</option><option>Bank</option></select></div>
+        <div class="field"><label>Date</label><input type="date" name="refund_date" value="{{ today }}"></div>
+        <div class="field"><label>Transaction ID</label><input name="transaction_id"></div>
+      </div>
+      <div class="field"><label>Reason <span class="req">*</span></label><textarea name="reason" rows="2" required></textarea></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+        <button class="btn btn-danger" type="submit">Process Refund</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

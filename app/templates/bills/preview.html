@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Bill Preview{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/bills">Bills</a> / Preview</div>
+<div class="page-head"><h2>Bill Preview</h2>
+  <span class="small muted">Review exactly what will be saved</span>
+</div>
+
+<div class="card">
+  <h3>{{ company.brand_name }}</h3>
+  <p class="muted small">{{ company.address }}{% if company.mobile %} | {{ company.mobile }}{% endif %}{% if company.gstin %} | GSTIN: {{ company.gstin }}{% endif %}</p>
+  <dl class="kv">
+    <dt>Patient</dt><dd>{{ patient.patient_name }} ({{ patient.patient_id }}) - {{ patient.mobile }}</dd>
+    <dt>Bill Type</dt><dd>{{ payload.bill_type|capitalize }}</dd>
+    <dt>Bill Date</dt><dd>{{ payload.bill_date|ddmmyyyy }}</dd>
+  </dl>
+</div>
+
+<div class="card">
+  <h3>Items</h3>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>#</th><th>Description</th><th>Type</th><th>Period</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Discount</th><th class="num">Amount</th></tr></thead>
+    <tbody>
+      {% for it in payload['items'] %}
+      {% set amt = it.quantity * it.rate - it.discount %}
+      <tr>
+        <td>{{ loop.index }}</td><td>{{ it.description }}{% if it.serial_number %}<br><span class="small muted">S/N: {{ it.serial_number }}</span>{% endif %}</td>
+        <td>{{ it.item_type|capitalize }} {{ ('(' ~ it.billing_type ~ ')') if it.billing_type }}</td>
+        <td>{% if it.start_date %}{{ it.start_date|ddmmyyyy }} - {{ it.end_date|ddmmyyyy }}{% else %}-{% endif %}</td>
+        <td class="num">{{ it.quantity }}</td><td class="num">{{ it.rate|inr }}</td>
+        <td class="num">{{ it.discount|inr }}</td><td class="num">{{ amt|inr }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <table class="totals-table mt">
+    <tr><td>Subtotal</td><td class="num">{{ payload.subtotal|inr }}</td></tr>
+    <tr><td>Discount</td><td class="num">{{ payload.discount|inr }}</td></tr>
+    <tr><td>Tax ({{ payload.tax_rate }}%)</td><td class="num">{{ payload.tax|inr }}</td></tr>
+    <tr><td>Damage Charges</td><td class="num">{{ payload.damage_charges|inr }}</td></tr>
+    <tr><td>Loss Charges</td><td class="num">{{ payload.loss_charges|inr }}</td></tr>
+    <tr><td>Other Charges</td><td class="num">{{ payload.other_charges|inr }}</td></tr>
+    <tr><td>Security Deposit (refundable)</td><td class="num">{{ payload.deposit|inr }}</td></tr>
+    <tr class="grand"><td>Grand Total</td><td class="num">{{ payload.grand_total|inr }}</td></tr>
+  </table>
+  {% if initial_payment.amount > 0 %}
+  <p class="mt"><strong>Payment with bill:</strong> {{ initial_payment.amount|inr }} via {{ initial_payment.method }} ({{ initial_payment.date|ddmmyyyy }})</p>
+  {% endif %}
+  {% if payload.notes %}<p><strong>Notes:</strong> {{ payload.notes }}</p>{% endif %}
+</div>
+
+<div class="card">
+  <form method="post" action="/bills/new/confirm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="payload_json" value='{{ payload_json|e }}'>
+    <input type="hidden" name="initial_payment_json" value='{{ initial_payment|tojson|e }}'>
+    {% if duplicate_of %}<input type="hidden" name="duplicate_of" value="{{ duplicate_of }}">{% endif %}
+    <div class="btn-row">
+      <a class="btn btn-ghost" href="/bills/new" onclick="history.back();return false;">Back to Edit</a>
+      <button class="btn btn-primary" type="submit">Confirm &amp; Save Bill</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

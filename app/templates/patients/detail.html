@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ patient.patient_name }}{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/patients">Patients</a> / {{ patient.patient_id }}</div>
+<div class="page-head">
+  <h2>{{ patient.patient_name }}</h2>
+  <div class="btn-row" style="margin:0">
+    {% if can('edit_patient') %}<a class="btn btn-outline" href="/patients/{{ patient.patient_id }}/edit">Edit</a>{% endif %}
+    {% if can('print_documents') %}
+    <a class="btn btn-ghost" href="/documents/patient_sheet/{{ patient.patient_id }}/print" target="_blank">Print Details</a>
+    {% endif %}
+    {% if can('generate_pdf') %}
+    <a class="btn btn-ghost" href="/documents/patient_sheet/{{ patient.patient_id }}/pdf">PDF</a>
+    {% endif %}
+    {% if can('create_bill') %}<a class="btn btn-primary" href="/bills/new">+ New Bill</a>{% endif %}
+  </div>
+</div>
+
+<div class="grid kpi">
+  <div class="kpi-card"><div class="label">Total Billed</div><div class="value">{{ totals.billed|inr }}</div></div>
+  <div class="kpi-card green"><div class="label">Total Received</div><div class="value">{{ totals.received|inr }}</div></div>
+  <div class="kpi-card amber"><div class="label">Pending</div><div class="value">{{ totals.pending|inr }}</div></div>
+</div>
+
+<div class="card">
+  <h3>Basic Details</h3>
+  <dl class="kv">
+    <dt>Patient ID</dt><dd>{{ patient.patient_id }}</dd>
+    <dt>Mobile</dt><dd>{{ patient.mobile }}</dd>
+    <dt>Address</dt><dd>{{ patient.address or '-' }}</dd>
+    <dt>Attendant</dt><dd>{{ patient.attendant_name or '-' }}</dd>
+    <dt>Doctor</dt><dd>{{ patient.doctor_name or '-' }}</dd>
+    <dt>Status</dt><dd>{{ badge(patient.status) }}</dd>
+  </dl>
+</div>
+
+<div data-tabs-scope>
+  <div class="tabs no-print" data-tabs>
+    <button type="button" class="active" data-tab="bills">Bills ({{ bills|length }})</button>
+    <button type="button" data-tab="payments">Payments ({{ payments|length }})</button>
+    <button type="button" data-tab="services">Services ({{ services|length }})</button>
+    <button type="button" data-tab="equipment">Equipment ({{ txns|length }})</button>
+    <button type="button" data-tab="deposits">Deposits ({{ deposits|length }})</button>
+    <button type="button" data-tab="quotations">Quotations ({{ quotations|length }})</button>
+    <button type="button" data-tab="activity">Activity</button>
+  </div>
+
+  <div class="card" data-tab-panel="bills">
+    {% if bills %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Bill No</th><th>Date</th><th>Type</th><th class="num">Total</th><th class="num">Pending</th><th>Status</th><th></th></tr></thead>
+      <tbody>{% for b in bills %}
+      <tr><td><a href="/bills/{{ b.bill_id }}">{{ b.bill_number }}</a></td><td>{{ b.bill_date|ddmmyyyy }}</td>
+      <td>{{ b.bill_type|capitalize }}</td><td class="num">{{ b.grand_total|inr }}</td>
+      <td class="num">{{ b.remaining_amount|inr }}</td><td>{{ badge(b.status) }}</td>
+      <td><a class="btn btn-outline btn-sm" href="/bills/{{ b.bill_id }}">Open</a></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No bills for this patient.</p>{% endif %}
+  </div>
+
+  <div class="card" data-tab-panel="payments" style="display:none">
+    {% if payments %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Payment ID</th><th>Date</th><th>Method</th><th class="num">Amount</th><th>Txn ID</th><th></th></tr></thead>
+      <tbody>{% for p in payments %}
+      <tr><td><a href="/payments/{{ p.payment_id }}">{{ p.payment_id }}</a></td><td>{{ p.payment_date|ddmmyyyy }}</td>
+      <td>{{ p.method }}</td><td class="num">{{ p.amount|inr }}</td><td>{{ p.transaction_id or '-' }}</td>
+      <td><a class="btn btn-outline btn-sm" href="/payments/{{ p.payment_id }}">Open</a></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No payments recorded.</p>{% endif %}
+    {% if refunds %}<h4 class="mt">Refunds</h4>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Refund ID</th><th>Date</th><th class="num">Amount</th><th>Reason</th></tr></thead>
+      <tbody>{% for r in refunds %}
+      <tr><td>{{ r.refund_id }}</td><td>{{ r.refund_date|ddmmyyyy }}</td><td class="num">{{ r.amount|inr }}</td><td>{{ r.reason }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>{% endif %}
+  </div>
+
+  <div class="card" data-tab-panel="services" style="display:none">
+    {% if services %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Service</th><th>Period</th><th>Qty</th><th class="num">Amount</th></tr></thead>
+      <tbody>{% for s in services %}
+      <tr><td>{{ s.service_name }}</td><td>{{ s.start_date|ddmmyyyy }} - {{ s.end_date|ddmmyyyy }}</td>
+      <td>{{ s.quantity }}</td><td class="num">{{ s.amount|inr }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No services recorded.</p>{% endif %}
+  </div>
+
+  <div class="card" data-tab-panel="equipment" style="display:none">
+    {% if txns %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Equipment</th><th>Type</th><th>Issue</th><th>Return</th><th>Condition</th></tr></thead>
+      <tbody>{% for t in txns %}
+      <tr><td><a href="/equipment/{{ t.equipment_id }}">{{ t.equipment_id }}</a></td><td>{{ t.txn_type }}</td>
+      <td>{{ t.issue_date|ddmmyyyy }}</td><td>{{ t.return_date|ddmmyyyy if t.return_date else '-' }}</td>
+      <td>{{ t.condition or '-' }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No equipment transactions.</p>{% endif %}
+  </div>
+
+  <div class="card" data-tab-panel="deposits" style="display:none">
+    {% if deposits %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Deposit ID</th><th>Date</th><th>Purpose</th><th class="num">Amount</th><th>Status</th></tr></thead>
+      <tbody>{% for d in deposits %}
+      <tr><td>{{ d.deposit_id }}</td><td>{{ d.deposit_date|ddmmyyyy }}</td><td>{{ d.purpose }}</td>
+      <td class="num">{{ d.amount|inr }}</td><td>{{ badge(d.status) }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No deposits / advances.</p>{% endif %}
+  </div>
+
+  <div class="card" data-tab-panel="quotations" style="display:none">
+    {% if quotations %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Number</th><th>Date</th><th class="num">Estimate</th><th>Status</th><th></th></tr></thead>
+      <tbody>{% for q in quotations %}
+      <tr><td><a href="/quotations/{{ q.quotation_id }}">{{ q.quotation_number }}</a></td>
+      <td>{{ q.quotation_date|ddmmyyyy }}</td><td class="num">{{ q.grand_total|inr }}</td>
+      <td>{{ badge(q.status) }}</td><td><a class="btn btn-outline btn-sm" href="/quotations/{{ q.quotation_id }}">Open</a></td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No quotations.</p>{% endif %}
+  </div>
+
+  <div class="card" data-tab-panel="activity" style="display:none">
+    {% if logs %}
+    <div class="timeline">
+      {% for l in logs %}
+      <div class="event"><strong>{{ l.action }}</strong> <span class="small muted">{{ l.timestamp|dt }} by {{ l.username }}</span><br>{{ l.description }}</div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="muted">No activity recorded.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

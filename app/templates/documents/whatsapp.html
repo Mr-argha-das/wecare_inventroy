@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}WhatsApp Share{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/documents">Documents</a> / {{ title }}</div>
+<div class="page-head"><h2>Share {{ title }} on WhatsApp</h2></div>
+<div class="card">
+  <p><strong>Document:</strong> {{ ctx.doc_number }} ({{ ctx.doc_date|ddmmyyyy }})</p>
+  <div class="field"><label>Message</label><textarea rows="10" readonly id="waMsg">{{ message }}</textarea></div>
+  <div class="btn-row">
+    {% if has_phone %}
+    <a class="btn btn-whatsapp" href="{{ wa_link }}" target="_blank" rel="noopener">Open WhatsApp</a>
+    {% else %}
+    <span class="flash flash-error">No patient mobile available. Copy the message manually.</span>
+    {% endif %}
+    <button class="btn btn-outline" type="button" onclick="navigator.clipboard.writeText(document.getElementById('waMsg').value);this.textContent='Copied!';">Copy Message</button>
+    {% if can('generate_pdf') %}<a class="btn btn-ghost" href="/documents/{{ doc_type }}/{{ ref_id }}/pdf">Download PDF to attach</a>{% endif %}
+  </div>
+  <p class="small muted">WhatsApp links open the WhatsApp app/website with the message pre-filled. Browsers cannot auto-attach PDF files to WhatsApp — download the PDF and attach it manually in the chat.</p>
+</div>
+{% endblock %}

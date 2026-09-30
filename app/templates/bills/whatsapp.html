@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}WhatsApp Share{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/bills">Bills</a> / <a href="/bills/{{ bill.bill_id }}">{{ bill.bill_number }}</a> / WhatsApp</div>
+<div class="page-head"><h2>Share on WhatsApp</h2></div>
+<div class="card">
+  <p><strong>Bill:</strong> {{ bill.bill_number }} &nbsp; <strong>Patient:</strong> {{ patient.patient_name }} ({{ patient.mobile or 'no mobile' }})</p>
+  <div class="field"><label>Message</label><textarea rows="10" readonly id="waMsg">{{ message }}</textarea></div>
+  <div class="btn-row">
+    {% if patient.mobile %}
+    <a class="btn btn-whatsapp" href="{{ wa_link }}" target="_blank" rel="noopener">Open WhatsApp to {{ patient.mobile }}</a>
+    {% else %}
+    <span class="flash flash-error">Patient has no mobile number. Copy the message manually.</span>
+    {% endif %}
+    <button class="btn btn-outline" type="button" onclick="navigator.clipboard.writeText(document.getElementById('waMsg').value);this.textContent='Copied!';">Copy Message</button>
+    {% if can('generate_pdf') %}<a class="btn btn-ghost" href="/documents/{% if bill.bill_type=='service' %}service_invoice{% elif bill.bill_type=='equipment' %}equipment_invoice{% else %}combined_invoice{% endif %}/{{ bill.bill_id }}/pdf">Download PDF to attach</a>{% endif %}
+  </div>
+  <p class="small muted">WhatsApp links open the WhatsApp app/website with the message pre-filled. Browsers cannot auto-attach PDF files to WhatsApp — download the PDF above and attach it manually in the chat.</p>
+</div>
+{% endblock %}

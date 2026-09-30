@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if mode=='edit' else 'New' }} Quotation{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/quotations">Quotations</a> / {{ 'Edit' if mode=='edit' else 'New' }}</div>
+<div class="page-head"><h2>{{ 'Edit Quotation' if mode=='edit' else 'New Quotation' }}</h2></div>
+<form method="post" action="{{ '/quotations/' ~ quotation.quotation_id ~ '/edit' if mode=='edit' else '/quotations/new' }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if mode=='edit' %}<div class="card"><p><strong>Quotation Number:</strong> {{ quotation.quotation_number }}</p></div>{% endif %}
+  <div class="card">
+    <h3>Customer Details</h3>
+    <div class="form-grid">
+      <div class="field"><label>Patient (optional)</label>
+        <select name="patient_id">
+          <option value="">-- Walk-in / none --</option>
+          {% for p in patients %}<option value="{{ p.patient_id }}" {% if (prefill.patient_id|default(''))==p.patient_id %}selected{% endif %}>{{ p.patient_name }} ({{ p.mobile }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Customer Name <span class="req">*</span></label><input name="customer_name" value="{{ prefill.customer_name|default('') }}" required></div>
+      <div class="field"><label>Quotation Date <span class="req">*</span></label><input type="date" name="quotation_date" value="{{ prefill.quotation_date|default(today) }}" required></div>
+      <div class="field"><label>Valid Until</label><input type="date" name="valid_until" value="{{ prefill.valid_until|default('') }}"></div>
+      {% if mode=='edit' %}
+      <div class="field"><label>Status</label>
+        <select name="status">
+          {% for s in ['Draft','Sent','Cancelled'] %}<option value="{{ s }}" {% if quotation.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card" id="quotationBuilder">
+    <h3>Items</h3>
+    <script id="quotationBuilder-config" type="application/json">
+    {"services": {{ services|tojson }}, "equipment": {{ equipment|tojson }}, "prefill": {{ prefill_items|tojson }}}
+    </script>
+    <div id="quotationBuilder-items"></div>
+    <input type="hidden" name="items_json" id="quotationBuilder-json">
+    <div class="btn-row">
+      <button type="button" class="btn btn-accent btn-sm" id="quotationBuilder-add-service">+ Add Service</button>
+      <button type="button" class="btn btn-outline btn-sm" id="quotationBuilder-add-equipment">+ Add Equipment</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Totals</h3>
+    <div class="form-grid">
+      <div class="field"><label>Discount (Rs.)</label><input type="number" min="0" step="0.01" name="discount" id="bill_discount" value="{{ prefill.discount|default(0) }}"></div>
+      <div class="field"><label>Tax Rate (%)</label><input type="number" min="0" max="100" step="0.01" name="tax_rate" id="tax_rate" value="{{ prefill.tax_rate|default(default_tax) }}"></div>
+    </div>
+    <div style="display:none"><input id="damage_charges" value="0"><input id="loss_charges" value="0"><input id="other_charges" value="0"><input id="deposit" value="0"><span id="t-damage"></span><span id="t-loss"></span><span id="t-other"></span><span id="t-deposit"></span></div>
+    <table class="totals-table">
+      <tr><td>Subtotal</td><td class="num" id="t-subtotal">Rs. 0.00</td></tr>
+      <tr><td>Discount</td><td class="num" id="t-discount">Rs. 0.00</td></tr>
+      <tr><td>Tax</td><td class="num" id="t-tax">Rs. 0.00</td></tr>
+      <tr class="grand"><td>Estimated Total</td><td class="num" id="t-grand">Rs. 0.00</td></tr>
+    </table>
+    <div class="field mt"><label>Terms</label><textarea name="terms" rows="3">{{ prefill.terms|default('') }}</textarea></div>
+    <div class="field"><label>Notes</label><textarea name="notes" rows="2">{{ prefill.notes|default('') }}</textarea></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">{{ 'Update Quotation' if mode=='edit' else 'Create Quotation' }}</button>
+      <a class="btn btn-ghost" href="/quotations">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/js/bill_builder.js"></script>{% endblock %}

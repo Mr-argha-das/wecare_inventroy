@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_partials.html" import presets %}
+{% block title %}Profit Report{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/reports">Reports</a> / Profit</div>
+<div class="page-head"><h2>Profit Report</h2>
+  <div class="btn-row no-print" style="margin:0">
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">Print</button>
+    {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/reports/profit/pdf?preset={{ preset }}&start={{ start }}&end={{ end }}">PDF</a>{% endif %}
+  </div>
+</div>
+{{ presets(preset) }}
+<p class="muted">Revenue is the total billed on active (non-canceled) bills. Profit = revenue &minus; refunds &minus; equipment purchase cost of <em>sold</em> items (where cost data exists). Service costs are not tracked, so service revenue is shown gross.</p>
+<div class="grid kpi">
+  <div class="kpi-card"><div class="label">Gross Revenue ({{ bill_count }} bills)</div><div class="value">{{ revenue|inr }}</div></div>
+  <div class="kpi-card red"><div class="label">Refunds</div><div class="value">{{ refunds|inr }}</div></div>
+  <div class="kpi-card teal"><div class="label">Net Revenue</div><div class="value">{{ net_revenue|inr }}</div></div>
+  <div class="kpi-card"><div class="label">Tax Collected</div><div class="value">{{ tax_collected|inr }}</div></div>
+  <div class="kpi-card amber"><div class="label">Discounts Given</div><div class="value">{{ discounts|inr }}</div></div>
+  <div class="kpi-card red"><div class="label">Equipment Cost</div><div class="value">{{ equipment_cost|inr }}</div></div>
+  <div class="kpi-card green"><div class="label">Profit</div><div class="value">{{ profit|inr }}</div></div>
+</div>
+<div class="card print-area">
+  <h3>Deducted Equipment Costs (sold items)</h3>
+  {% if cost_lines %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit Cost</th><th class="num">Total Cost</th></tr></thead>
+    <tbody>{% for c in cost_lines %}
+    <tr><td>{{ c.description }}</td><td class="num">{{ c.quantity }}</td><td class="num">{{ c.unit_cost|inr }}</td><td class="num">{{ c.total_cost|inr }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">No sold equipment with recorded purchase cost in this period.</p>{% endif %}
+</div>
+{% endblock %}

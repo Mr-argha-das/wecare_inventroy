@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_partials.html" import pagination, empty_state %}
+{% block title %}Patients{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Patients</h2>
+  {% if can('create_patient') %}<a class="btn btn-primary" href="/patients/new">+ Add Patient</a>{% endif %}
+</div>
+<div class="card">
+  <form method="get" class="filter-bar">
+    <div class="field" style="flex:1"><label>Search</label><input name="search" value="{{ search }}" placeholder="Name, mobile, patient ID, doctor..."></div>
+    <div class="field"><label>Status</label>
+      <select name="status"><option value="">All</option>
+        <option value="Active" {% if status=='Active' %}selected{% endif %}>Active</option>
+        <option value="Inactive" {% if status=='Inactive' %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+    <div class="field"><label>&nbsp;</label><a class="btn btn-ghost" href="/patients">Clear</a></div>
+  </form>
+</div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="data" id="patientTable">
+    <thead><tr><th class="sortable">Patient ID</th><th class="sortable">Name</th><th>Mobile</th><th>Doctor</th><th class="num">Pending</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for p in rows %}
+      <tr>
+        <td><a href="/patients/{{ p.patient_id }}">{{ p.patient_id }}</a></td>
+        <td><strong>{{ p.patient_name }}</strong></td>
+        <td>{{ p.mobile }}</td>
+        <td>{{ p.doctor_name or '-' }}</td>
+        <td class="num">{{ (pending_map.get(p.patient_id, 0))|inr }}</td>
+        <td>{{ badge(p.status) }}</td>
+        <td><div class="row-actions">
+          <a class="btn btn-outline btn-sm" href="/patients/{{ p.patient_id }}">View</a>
+          {% if can('edit_patient') %}<a class="btn btn-ghost btn-sm" href="/patients/{{ p.patient_id }}/edit">Edit</a>{% endif %}
+        </div></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {{ pagination(pg, '/patients', 'search=' ~ search ~ '&status=' ~ status) }}
+  {% else %}
+  {{ empty_state('No patients found.', '/patients/new' if can('create_patient') else '', 'Add Patient') }}
+  {% endif %}
+</div>
+{% endblock %}

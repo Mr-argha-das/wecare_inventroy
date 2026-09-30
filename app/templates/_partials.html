@@ -1,0 +1,38 @@
+{% macro pagination(pg, base_url, query) -%}
+{% if pg.pages > 1 %}
+<div class="pagination no-print">
+  <span class="small muted">Page {{ pg.page }} of {{ pg.pages }} ({{ pg.total }} records)</span>
+  {% if pg.has_prev %}<a href="{{ base_url }}?page={{ pg.page - 1 }}&{{ query }}">&#8592; Prev</a>{% endif %}
+  {% for n in pg.page_numbers %}
+    {% if n == pg.page %}<span class="cur">{{ n }}</span>
+    {% else %}<a href="{{ base_url }}?page={{ n }}&{{ query }}">{{ n }}</a>{% endif %}
+  {% endfor %}
+  {% if pg.has_next %}<a href="{{ base_url }}?page={{ pg.page + 1 }}&{{ query }}">Next &#8594;</a>{% endif %}
+</div>
+{% elif pg.total %}
+<div class="small muted mt">{{ pg.total }} record(s)</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro empty_state(message, action_url, action_label) -%}
+<div class="empty">
+  <div class="big">&#128203;</div>
+  <p><strong>{{ message }}</strong></p>
+  {% if action_url %}<a class="btn btn-primary" href="{{ action_url }}">{{ action_label or 'Add New' }}</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro presets(current, extra='') -%}
+<div class="preset-pills no-print">
+  {% for key, label in [('today','Today'),('yesterday','Yesterday'),('week','This Week'),('month','This Month'),('last_month','Last Month')] %}
+  <a href="?preset={{ key }}{{ extra }}" class="{% if current==key %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+  <a href="#" onclick="document.getElementById('customRange').style.display='flex';return false;" class="{% if current=='custom' %}active{% endif %}">Custom Range</a>
+</div>
+<form id="customRange" method="get" class="filter-bar no-print" style="display:{% if current=='custom' %}flex{% else %}none{% endif %}">
+  <input type="hidden" name="preset" value="custom">
+  <div class="field"><label>Start</label><input type="date" name="start" value="{{ start|default('') }}"></div>
+  <div class="field"><label>End</label><input type="date" name="end" value="{{ end|default('') }}"></div>
+  <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+</form>
+{%- endmacro %}

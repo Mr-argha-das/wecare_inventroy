@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if mode=='edit' else 'Add' }} Patient{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/patients">Patients</a> / {{ 'Edit' if mode=='edit' else 'Add' }}</div>
+<div class="page-head"><h2>{{ 'Edit Patient' if mode=='edit' else 'Add Patient' }}</h2></div>
+<div class="card">
+  <form method="post" action="{{ '/patients/' ~ patient.patient_id ~ '/edit' if mode=='edit' else '/patients/new' }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if mode=='edit' %}<p><strong>Patient ID:</strong> {{ patient.patient_id }}</p>{% endif %}
+    <div class="form-grid">
+      <div class="field"><label>Patient Name <span class="req">*</span></label><input name="patient_name" value="{{ patient.patient_name|default('') }}" required></div>
+      <div class="field"><label>Mobile Number <span class="req">*</span></label><input name="mobile" value="{{ patient.mobile|default('') }}" required pattern="[0-9+ ]{10,15}" title="Valid 10-digit mobile number"><span class="hint">10-digit Indian mobile number</span></div>
+      <div class="field"><label>Relative / Attendant Name</label><input name="attendant_name" value="{{ patient.attendant_name|default('') }}"></div>
+      <div class="field"><label>Doctor Name</label><input name="doctor_name" value="{{ patient.doctor_name|default('') }}"></div>
+      {% if mode=='edit' %}
+      <div class="field"><label>Status</label>
+        <select name="status">
+          <option value="Active" {% if patient.status=='Active' %}selected{% endif %}>Active</option>
+          <option value="Inactive" {% if patient.status=='Inactive' %}selected{% endif %}>Inactive</option>
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    <div class="field"><label>Address</label><textarea name="address" rows="3">{{ patient.address|default('') }}</textarea></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">{{ 'Update Patient' if mode=='edit' else 'Create Patient' }}</button>
+      <a class="btn btn-ghost" href="{{ '/patients/' ~ patient.patient_id if mode=='edit' else '/patients' }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if mode=='edit' else 'Add' }} Staff{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/staff">Staff</a> / {{ 'Edit' if mode=='edit' else 'Add' }}</div>
+<div class="page-head"><h2>{{ 'Edit Staff' if mode=='edit' else 'Add Staff' }}</h2></div>
+<div class="card">
+  <form method="post" action="{{ '/staff/' ~ staff.staff_id ~ '/edit' if mode=='edit' else '/staff/new' }}" data-confirm="{{ 'Update permissions for this staff member?' if mode=='edit' else '' }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="form-grid">
+      {% if mode=='new' %}
+      <div class="field"><label>Username <span class="req">*</span></label><input name="username" required minlength="3" placeholder="lowercase, no spaces"></div>
+      {% else %}
+      <div class="field"><label>Username</label><input value="{{ staff.username }}" disabled></div>
+      {% endif %}
+      <div class="field"><label>Full Name <span class="req">*</span></label><input name="full_name" value="{{ staff.full_name|default('') }}" required></div>
+      <div class="field"><label>{{ 'New Password' if mode=='edit' else 'Password' }} {% if mode=='new' %}<span class="req">*</span>{% endif %}</label>
+        <input type="password" name="password" {% if mode=='new' %}required minlength="6"{% endif %} placeholder="{% if mode=='edit' %}Leave blank to keep current{% else %}Min 6 characters{% endif %}">
+      </div>
+      <div class="field"><label>Role</label>
+        <select name="role">
+          <option value="staff" {% if staff.role=='staff' %}selected{% endif %}>Staff</option>
+          <option value="admin" {% if staff.role=='admin' %}selected{% endif %}>Admin</option>
+        </select>
+      </div>
+      {% if mode=='edit' %}
+      <div class="field"><label>Status</label>
+        <select name="status">
+          <option value="Active" {% if staff.status=='Active' %}selected{% endif %}>Active</option>
+          <option value="Inactive" {% if staff.status=='Inactive' %}selected{% endif %}>Inactive</option>
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    <h3 class="mt">Permissions</h3>
+    <p class="small muted">Admins always have full access. For staff, ticked permissions grant access; unticked = role defaults when none selected.</p>
+    <div class="perm-grid">
+      {% for p in permissions %}
+      <label><input type="checkbox" name="permissions" value="{{ p }}" {% if p in selected %}checked{% endif %}> {{ labels[p] }}</label>
+      {% endfor %}
+    </div>
+    <div class="btn-row mt">
+      <button class="btn btn-primary" type="submit">{{ 'Update Staff' if mode=='edit' else 'Create Staff' }}</button>
+      <a class="btn btn-ghost" href="/staff">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

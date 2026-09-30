@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_partials.html" import pagination, empty_state %}
+{% block title %}Payments{% endblock %}
+{% block content %}
+<div class="page-head"><h2>Payments</h2>
+  <div class="btn-row" style="margin:0">
+    <a class="btn btn-outline" href="/deposits">Deposits / Advances</a>
+    <a class="btn btn-ghost" href="/refunds">Refunds</a>
+  </div>
+</div>
+<div class="grid kpi"><div class="kpi-card green"><div class="label">Collected (filtered)</div><div class="value">{{ collected|inr }}</div></div></div>
+<div class="card">
+  <form method="get" class="filter-bar">
+    <div class="field" style="flex:1"><label>Search</label><input name="search" value="{{ search }}" placeholder="Payment ID, bill no, patient, txn ID..."></div>
+    <div class="field"><label>Method</label>
+      <select name="method"><option value="">All</option>
+        {% for m in methods %}<option value="{{ m }}" {% if method==m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>From</label><input type="date" name="start" value="{{ start }}"></div>
+    <div class="field"><label>To</label><input type="date" name="end" value="{{ end }}"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+    <div class="field"><label>&nbsp;</label><a class="btn btn-ghost" href="/payments">Clear</a></div>
+  </form>
+</div>
+<div class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th class="sortable">Date</th><th>Payment ID</th><th>Bill No</th><th>Patient</th><th>Method</th><th class="num">Amount</th><th>Received By</th><th></th></tr></thead>
+    <tbody>{% for p in rows %}
+    <tr><td>{{ p.payment_date|ddmmyyyy }}</td><td><a href="/payments/{{ p.payment_id }}">{{ p.payment_id }}</a></td>
+    <td><a href="/bills/{{ p.bill_id }}">{{ p.bill_number }}</a></td><td>{{ p.patient_name }}</td>
+    <td>{{ p.method }}</td><td class="num">{{ p.amount|inr }}</td><td>{{ p.received_by }}</td>
+    <td><a class="btn btn-outline btn-sm" href="/payments/{{ p.payment_id }}">Open</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {{ pagination(pg, '/payments', 'search=' ~ search ~ '&method=' ~ method ~ '&start=' ~ start ~ '&end=' ~ end) }}
+  {% else %}
+  {{ empty_state('No payments found.') }}
+  {% endif %}
+</div>
+{% endblock %}

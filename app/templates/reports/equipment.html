@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_partials.html" import presets %}
+{% block title %}Equipment Report{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/reports">Reports</a> / Equipment</div>
+<div class="page-head"><h2>Equipment Rental &amp; Return Report</h2>
+  <div class="btn-row no-print" style="margin:0">
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">Print</button>
+    {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/reports/equipment/pdf?preset={{ preset }}&start={{ start }}&end={{ end }}">PDF</a>{% endif %}
+  </div>
+</div>
+{{ presets(preset) }}
+<div class="grid kpi">
+  <div class="kpi-card teal"><div class="label">Rent Billed</div><div class="value">{{ total_rent|inr }}</div></div>
+  <div class="kpi-card"><div class="label">Deposits Collected</div><div class="value">{{ total_dep|inr }}</div></div>
+</div>
+<div class="card print-area">
+  <h3>Rentals</h3>
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Equipment</th><th>Patient</th><th>Start</th><th>End</th><th class="num">Rent</th><th class="num">Deposit</th><th>Returned</th></tr></thead>
+    <tbody>{% for r in rows %}
+    <tr><td>{{ r.equipment }}<br><span class="small muted">{{ r.serial_number }}</span></td><td>{{ r.patient_name }}</td>
+    <td>{{ r.issue_date|ddmmyyyy }}</td><td>{{ r.expected_return_date|ddmmyyyy }}</td>
+    <td class="num">{{ r.rent_amount|inr }}</td><td class="num">{{ r.deposit|inr }}</td>
+    <td>{{ r.return_date|ddmmyyyy if r.return_date else 'No' }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">No rentals in this period.</p>{% endif %}
+</div>
+<div class="card print-area">
+  <h3>Returns</h3>
+  {% if returns %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Equipment</th><th>Patient</th><th>Return Date</th><th>Condition</th><th class="num">Damage</th><th class="num">Loss</th><th class="num">Refunded</th></tr></thead>
+    <tbody>{% for r in returns %}
+    <tr><td>{{ r.equipment }}<br><span class="small muted">{{ r.serial_number }}</span></td><td>{{ r.patient_name }}</td>
+    <td>{{ r.return_date|ddmmyyyy }}</td><td>{{ r.condition }}</td>
+    <td class="num">{{ r.damage_charge|inr }}</td><td class="num">{{ r.loss_charge|inr }}</td>
+    <td class="num">{{ r.refund_amount|inr }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">No returns in this period.</p>{% endif %}
+</div>
+{% endblock %}

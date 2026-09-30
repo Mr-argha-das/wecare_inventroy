@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Pending Payments{% endblock %}
+{% block content %}
+<div class="breadcrumbs"><a href="/reports">Reports</a> / Pending Payments</div>
+<div class="page-head"><h2>Pending Payment Report</h2>
+  <div class="btn-row no-print" style="margin:0">
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">Print</button>
+    {% if can('generate_pdf') %}<a class="btn btn-ghost btn-sm" href="/reports/pending/pdf">PDF</a>{% endif %}
+  </div>
+</div>
+<div class="grid kpi"><div class="kpi-card amber"><div class="label">Total Pending</div><div class="value">{{ total|inr }}</div></div></div>
+<div class="card no-print">
+  <form method="get" class="filter-bar">
+    <div class="field" style="flex:1"><label>Search</label><input name="search" value="{{ search }}" placeholder="Patient, bill no..."></div>
+    <div class="field"><label>&nbsp;</label><button class="btn btn-primary" type="submit">Apply</button></div>
+    <div class="field"><label>&nbsp;</label><a class="btn btn-ghost" href="/reports/pending">Clear</a></div>
+  </form>
+</div>
+<div class="card print-area">
+  {% if rows %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Patient</th><th>Bill No</th><th>Date</th><th class="num">Total</th><th class="num">Received</th><th class="num">Pending</th><th class="no-print"></th></tr></thead>
+    <tbody>{% for r in rows %}
+    <tr><td>{{ r.patient_name }}</td><td>{{ r.bill_number }}</td><td>{{ r.bill_date|ddmmyyyy }}</td>
+    <td class="num">{{ r.grand_total|inr }}</td><td class="num">{{ r.received|inr }}</td>
+    <td class="num"><strong>{{ r.pending|inr }}</strong></td>
+    <td class="no-print"><a class="btn btn-outline btn-sm" href="/bills/{{ r.bill_id }}">Open</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted">No pending payments.</p>{% endif %}
+</div>
+{% endblock %}
