@@ -21,3 +21,4 @@ app/static/uploads/*.*
 
 # PM2
 .pm2/
+documents/pdf/*.png
