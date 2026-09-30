@@ -16,9 +16,19 @@ from ..utils import client_ip, flash, safe_filename
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-COMPANY_KEYS = ["brand_name", "address", "mobile", "email", "gstin", "gst_rate",
-                "bank_details", "upi_details", "terms", "signature_name", "logo"]
+COMPANY_KEYS = ["brand_name", "address", "mobile", "email", "website", "gstin", "gst_rate",
+                "brand_color", "invoice_prefix",
+                "bank_name", "account_name", "account_number", "ifsc", "branch",
+                "bank_details", "upi_details", "terms", "declaration", "footer_note",
+                "signature_name", "logo", "signature_image", "upi_qr"]
+# Keys that are managed by file upload, never by the text form.
+IMAGE_KEYS = {"logo": "logo", "signature_image": "signature", "upi_qr": "upiqr"}
 DOC_KEYS = ["template"]
+
+
+def _valid_hex_color(value: str) -> bool:
+    s = value.strip().lstrip("#")
+    return len(s) in (3, 6) and all(ch in "0123456789abcdefABCDEF" for ch in s)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -41,9 +51,22 @@ async def settings_company(request: Request, user: dict = Depends(require_permis
     before = db.get_all_settings("company_settings")
     updates: dict = {}
     for key in COMPANY_KEYS:
-        if key == "logo":
+        if key in IMAGE_KEYS:
             continue
         updates[key] = str(form.get(key, "") or "").strip()
+    color = updates.get("brand_color", "")
+    if color:
+        if not _valid_hex_color(color):
+            flash(request, "Brand colour must be a hex value like #174478.", "error")
+            return RedirectResponse(url="/settings", status_code=303)
+        updates["brand_color"] = "#" + color.strip().lstrip("#").lower()
+    prefix = updates.get("invoice_prefix", "")
+    if prefix:
+        cleaned = "".join(ch for ch in prefix.upper() if ch.isalnum() or ch in "-_").strip("-_")
+        if not cleaned or len(cleaned) > 12:
+            flash(request, "Invoice prefix must be 1-12 letters/digits (e.g. WC-INV).", "error")
+            return RedirectResponse(url="/settings", status_code=303)
+        updates["invoice_prefix"] = cleaned
     try:
         rate = float(updates.get("gst_rate") or 0)
         if rate < 0 or rate > 100:
@@ -70,9 +93,9 @@ async def settings_documents(request: Request, user: dict = Depends(require_perm
     if not validate_csrf(request.session, form.get("csrf_token")):
         flash(request, "Session expired. Please try again.", "error")
         return RedirectResponse(url="/settings", status_code=303)
-    template = str(form.get("template", "A")).upper()
-    if template not in ("A", "B", "C"):
-        template = "A"
+    template = str(form.get("template", "D")).upper()
+    if template not in ("A", "B", "C", "D"):
+        template = "D"
     before = db.get_all_settings("document_settings")
     db.set_setting("document_settings", "template", template)
     log_activity(user=user, action="CHANGE_SETTINGS", entity_type="settings", entity_id="documents",
@@ -82,50 +105,93 @@ async def settings_documents(request: Request, user: dict = Depends(require_perm
     return RedirectResponse(url="/settings", status_code=303)
 
 
+LABELS = {"logo": "Logo", "signature_image": "Signature image", "upi_qr": "UPI QR code"}
+
+
+async def _save_brand_image(request: Request, user: dict, key: str, upload: UploadFile | None):
+    """Shared validation + storage for logo / signature / UPI QR uploads."""
+    if key not in IMAGE_KEYS:
+        flash(request, "Unknown image type.", "error")
+        return RedirectResponse(url="/settings", status_code=303)
+    label = LABELS.get(key, key)
+    if upload is None or not upload.filename:
+        flash(request, f"Please choose a {label.lower()} file.", "error")
+        return RedirectResponse(url="/settings", status_code=303)
+    ext = Path(upload.filename).suffix.lower()
+    if ext not in ALLOWED_LOGO_EXTENSIONS:
+        flash(request, f"{label} must be PNG, JPG, JPEG or WEBP.", "error")
+        return RedirectResponse(url="/settings", status_code=303)
+    content = await upload.read()
+    if len(content) == 0:
+        flash(request, "Empty file.", "error")
+        return RedirectResponse(url="/settings", status_code=303)
+    if len(content) > MAX_UPLOAD_MB * 1024 * 1024:
+        flash(request, f"{label} must be smaller than {MAX_UPLOAD_MB} MB.", "error")
+        return RedirectResponse(url="/settings", status_code=303)
+    # Validate it is a real image.
+    try:
+        from PIL import Image
+        import io as _io
+        Image.open(_io.BytesIO(content)).verify()
+    except Exception:
+        flash(request, "Invalid image file.", "error")
+        return RedirectResponse(url="/settings", status_code=303)
+    stem = IMAGE_KEYS[key]
+    filename = stem + ext
+    for old in Path(UPLOAD_DIR).glob(stem + ".*"):
+        try:
+            old.unlink()
+        except OSError:
+            pass
+    (Path(UPLOAD_DIR) / filename).write_bytes(content)
+    before = db.get_setting("company_settings", key, "")
+    db.set_setting("company_settings", key, filename)
+    log_activity(user=user, action="CHANGE_SETTINGS", entity_type="settings", entity_id=key,
+                 description=f"Uploaded new company {label.lower()}", before={key: before},
+                 after={key: filename}, ip=client_ip(request))
+    flash(request, f"{label} uploaded successfully.")
+    return RedirectResponse(url="/settings", status_code=303)
+
+
 @router.post("/logo")
 async def settings_logo(request: Request, logo: UploadFile | None = File(None),
                         csrf_token: str = Form(""), user: dict = Depends(require_permission("manage_settings"))):
     if not validate_csrf(request.session, csrf_token):
         flash(request, "Session expired. Please try again.", "error")
         return RedirectResponse(url="/settings", status_code=303)
-    if logo is None or not logo.filename:
-        flash(request, "Please choose a logo file.", "error")
+    return await _save_brand_image(request, user, "logo", logo)
+
+
+@router.post("/image/{key}")
+async def settings_image(request: Request, key: str, image: UploadFile | None = File(None),
+                         csrf_token: str = Form(""), user: dict = Depends(require_permission("manage_settings"))):
+    """Upload signature image / UPI QR (and logo) used on invoices and PDFs."""
+    if not validate_csrf(request.session, csrf_token):
+        flash(request, "Session expired. Please try again.", "error")
         return RedirectResponse(url="/settings", status_code=303)
-    ext = Path(logo.filename).suffix.lower()
-    if ext not in ALLOWED_LOGO_EXTENSIONS:
-        flash(request, "Logo must be PNG, JPG, JPEG or WEBP.", "error")
+    return await _save_brand_image(request, user, key, image)
+
+
+@router.post("/image/{key}/remove")
+async def settings_image_remove(request: Request, key: str, csrf_token: str = Form(""),
+                                user: dict = Depends(require_permission("manage_settings"))):
+    if not validate_csrf(request.session, csrf_token):
+        flash(request, "Session expired. Please try again.", "error")
         return RedirectResponse(url="/settings", status_code=303)
-    content = await logo.read()
-    if len(content) > MAX_UPLOAD_MB * 1024 * 1024:
-        flash(request, f"Logo must be smaller than {MAX_UPLOAD_MB} MB.", "error")
+    if key not in IMAGE_KEYS:
+        flash(request, "Unknown image type.", "error")
         return RedirectResponse(url="/settings", status_code=303)
-    if len(content) == 0:
-        flash(request, "Empty file.", "error")
-        return RedirectResponse(url="/settings", status_code=303)
-    # Validate it is a real image.
-    try:
-        from PIL import Image
-        import io as _io
-        img = Image.open(_io.BytesIO(content))
-        img.verify()
-    except Exception:
-        flash(request, "Invalid image file.", "error")
-        return RedirectResponse(url="/settings", status_code=303)
-    filename = "logo" + ext
-    dest = Path(UPLOAD_DIR) / filename
-    # Remove older logo variants.
-    for old in Path(UPLOAD_DIR).glob("logo.*"):
+    before = db.get_setting("company_settings", key, "")
+    for old in Path(UPLOAD_DIR).glob(IMAGE_KEYS[key] + ".*"):
         try:
             old.unlink()
         except OSError:
             pass
-    dest.write_bytes(content)
-    before = db.get_setting("company_settings", "logo", "")
-    db.set_setting("company_settings", "logo", filename)
-    log_activity(user=user, action="CHANGE_SETTINGS", entity_type="settings", entity_id="logo",
-                 description="Uploaded new company logo", before={"logo": before},
-                 after={"logo": filename}, ip=client_ip(request))
-    flash(request, "Logo uploaded successfully.")
+    db.set_setting("company_settings", key, "")
+    log_activity(user=user, action="CHANGE_SETTINGS", entity_type="settings", entity_id=key,
+                 description=f"Removed company {LABELS.get(key, key).lower()}", before={key: before},
+                 after={key: ""}, ip=client_ip(request))
+    flash(request, f"{LABELS.get(key, key)} removed.")
     return RedirectResponse(url="/settings", status_code=303)
 
 

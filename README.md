@@ -29,12 +29,19 @@ settings, backup, and global search.
   cash-vs-online, profit (revenue vs cost) — all excludable-canceled, refund-aware,
   with print + PDF
 - **Documents** — 13 branded templates (invoices, receipts, statements, handover/return,
-  agreement, patient sheet, quotation) in 3 invoice styles; print CSS + real PDF (fpdf2)
+  agreement, patient sheet, quotation) in 4 invoice styles; print CSS + real PDF (fpdf2)
+- **Template D — "We Care" green invoice (default)** — logo left / company block right,
+  green section bands, Bill To + Invoice Details, Services/Equipment table with
+  Starting Date, Till Date, Days, Price, Amount, **invoice amount in words**, payment type,
+  terms, bank details with UPI QR, amounts panel and signature — identical on screen, print and PDF
 - **WhatsApp share** — pre-filled `wa.me` message with bill/patient/amounts (honest about
   manual PDF attach — browsers can't auto-attach files)
 - **Staff & permissions** — 25 granular permissions enforced on every route + UI
 - **Activity logs** — every important action with before/after snapshots and IP
-- **Settings** — brand, logo upload, GST, bank/UPI, terms, signature, templates
+- **Settings** — brand name/address/contact/website, **brand colour**, **invoice number prefix**,
+  GST, structured bank details (bank, A/c name, A/c no, IFSC, branch), UPI ID,
+  **logo / signature image / UPI QR uploads**, terms, declaration, footer note, invoice template.
+  Every invoice created afterwards picks up the latest values automatically.
 - **Backup** — one-click timestamped backup of Feather files + uploads
 - **Security** — bcrypt passwords, signed sessions, CSRF tokens, validation everywhere
 
@@ -122,3 +129,9 @@ permissions, back-date rule, deposits, and activity logging.
    `uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2`
 3. Schedule regular backups (Settings → Backup, or copy `data/` + `app/static/uploads/`).
 4. Restrict file permissions on `data/`, `backups/` and `.env`.
+
+## Deployment
+
+See **[DEPLOY.md](DEPLOY.md)** for a step-by-step PM2 + nginx + HTTPS production setup
+(`ecosystem.config.js` is included). Run a single instance only — the Feather-file
+storage does not support concurrent writers.
