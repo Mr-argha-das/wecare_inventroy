@@ -36,6 +36,11 @@ if command -v pm2 >/dev/null 2>&1; then
   fi
 fi
 
+if ! command -v pm2 >/dev/null 2>&1; then
+  echo "!! PM2 not found. Install it first:  sudo npm install -g pm2"
+  exit 1
+fi
+
 STAMP="$(date +%F_%H%M%S)"
 echo "==> App: $APP_NAME | branch: $BRANCH | venv: $VENV_DIR"
 
