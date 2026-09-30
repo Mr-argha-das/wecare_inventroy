@@ -9,7 +9,7 @@ from fpdf import FPDF
 
 from .. import database as db
 from ..config import PDF_DIR, UPLOAD_DIR
-from ..utils import amount_in_words, format_date, format_inr, format_qty
+from ..utils import amount_in_words, format_date, format_inr, format_inr_doc, format_qty
 
 FONT_DIR = Path(__file__).resolve().parent.parent / "static" / "fonts"
 SYSTEM_FONT = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
@@ -425,27 +425,30 @@ class DocPDF(FPDF):
 
 
 class WeCarePDF(DocPDF):
-    """Template D — pixel-faithful PDF version of the approved green invoice."""
+    """Template D — PDF twin of the approved green invoice (same metrics as the HTML)."""
 
     def header(self):  # drawn manually, once, by render_wecare_invoice
         pass
 
     def footer(self):
         note = str(self.company.get("footer_note") or "")
-        self.set_y(-14)
+        if note or self.page_no() > 1:
+            self.set_y(-13)
         if note:
-            self.set_font(self.font_family, "B", 8)
+            self.set_font(self.font_family, "B", 7.5)
             self.set_text_color(*self.brand_rgb)
             self.cell(0, 4, self._t(note), align="C", new_x="LMARGIN", new_y="NEXT")
-        self.set_font(self.font_family, "", 7.5)
-        self.set_text_color(140, 140, 140)
-        self.cell(0, 4, f"Page {self.page_no()}/{{nb}}", align="C")
+        if self.page_no() > 1:  # single-page invoices stay clean, like the sample
+            self.set_font(self.font_family, "", 7)
+            self.set_text_color(150, 150, 150)
+            self.cell(0, 4, f"Page {self.page_no()}", align="C")
 
-    def band(self, text: str, width: float = 0):
+    def band(self, text: str, width: float, x: float):
+        self.set_x(x)
         self.set_fill_color(*self.brand_rgb)
         self.set_text_color(255, 255, 255)
-        self.set_font(self.font_family, "B", 8.5)
-        self.cell(width, 5.6, "  " + self._t(text), fill=True, new_x="LMARGIN", new_y="NEXT")
+        self.set_font(self.font_family, "B", 8)
+        self.cell(width, 4.8, "  " + self._t(text), fill=True, new_x="LMARGIN", new_y="NEXT")
         self.set_text_color(30, 30, 30)
 
 
@@ -454,25 +457,25 @@ def render_wecare_invoice(ctx: dict) -> bytes:
     bill, patient = ctx["bill"], ctx["patient"]
     pdf = WeCarePDF(company)
     pdf.alias_nb_pages("{nb}")
-    pdf.set_auto_page_break(True, margin=20)
+    pdf.set_auto_page_break(True, margin=16)
     pdf.add_page()
     left, right_edge = 12.0, 198.0
     usable = right_edge - left
 
-    # --- Header: logo left, company block right ---------------------------
+    # --- Header: logo left, company block right -------------------------
     top = pdf.get_y()
     logo = str(company.get("logo") or "")
     logo_path = Path(UPLOAD_DIR) / logo if logo else None
     if logo_path and logo_path.exists():
         try:
-            pdf.image(str(logo_path), x=left, y=top, h=18)
+            pdf.image(str(logo_path), x=left, y=top, h=15)
         except Exception:
             pass
     pdf.set_xy(left + 45, top)
-    pdf.set_font(pdf.font_family, "B", 15)
+    pdf.set_font(pdf.font_family, "B", 13.5)
     pdf.set_text_color(17, 17, 17)
-    pdf.cell(usable - 45, 7, pdf._t(company.get("brand_name", "")), align="R", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font(pdf.font_family, "", 7.8)
+    pdf.cell(usable - 45, 6.5, pdf._t(company.get("brand_name", "")), align="R", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font(pdf.font_family, "", 7)
     pdf.set_text_color(60, 60, 60)
     info = []
     if company.get("address"):
@@ -483,127 +486,123 @@ def render_wecare_invoice(ctx: dict) -> bytes:
     ] if x)
     if contact:
         info.append(contact)
-    if company.get("website"):
-        info.append(str(company["website"]))
     if company.get("account_number"):
         info.append(f"{company.get('brand_name', '')}: {company['account_number']}")
+    if company.get("website"):
+        info.append(str(company["website"]))
     if company.get("gstin"):
         info.append(f"GST Number : {company['gstin']}")
     for line in info:
-        pdf.set_x(left + 40)
-        pdf.multi_cell(usable - 40, 4, pdf._t(line), align="R", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_y(max(pdf.get_y(), top + 20) + 2)
+        pdf.set_x(left + 60)
+        pdf.multi_cell(usable - 60, 3.6, pdf._t(line), align="R", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_y(max(pdf.get_y(), top + 16) + 1)
 
-    # --- Title band -------------------------------------------------------
+    # --- Green rule / title / green rule --------------------------------
     pdf.set_draw_color(*pdf.brand_rgb)
-    pdf.set_line_width(0.5)
+    pdf.set_line_width(0.45)
     y = pdf.get_y()
     pdf.line(left, y, right_edge, y)
-    pdf.set_font(pdf.font_family, "B", 11)
+    pdf.ln(1.2)
+    pdf.set_font(pdf.font_family, "B", 9.5)
     pdf.set_text_color(*pdf.brand_rgb)
-    pdf.ln(1.5)
-    pdf.cell(0, 6, pdf._t(str(ctx.get("title", "Tax Invoice")).title()), align="C", new_x="LMARGIN", new_y="NEXT")
-    y = pdf.get_y() + 1
+    pdf.cell(0, 5, pdf._t(str(ctx.get("title", "Tax Invoice")).title()), align="C", new_x="LMARGIN", new_y="NEXT")
+    y = pdf.get_y() + 0.8
     pdf.line(left, y, right_edge, y)
-    pdf.ln(4)
+    pdf.ln(3.5)
 
-    # --- Bill To / Invoice Details ---------------------------------------
-    block_top = pdf.get_y()
-    pdf.set_text_color(17, 17, 17)
+    # --- Bill To / Invoice Details --------------------------------------
     half = usable / 2
-    pdf.set_font(pdf.font_family, "B", 9)
+    pdf.set_text_color(17, 17, 17)
+    pdf.set_font(pdf.font_family, "B", 8)
     pdf.set_x(left)
-    pdf.cell(half, 5, "Bill To", new_x="END", new_y="LAST")
+    pdf.cell(half, 4.4, "Bill To", new_x="END", new_y="LAST")
     pdf.set_x(left + half)
-    pdf.cell(half, 5, "Invoice Details", align="R", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(half, 4.4, "Invoice Details", align="R", new_x="LMARGIN", new_y="NEXT")
     left_lines = [str(patient.get("patient_name", ""))]
     if patient.get("mobile"):
         left_lines.append(f"Contact no.: {patient['mobile']}")
-    if patient.get("address"):
-        left_lines.append(str(patient["address"]))
-    right_lines = [f"Invoice No.: {ctx.get('doc_number', '')}",
-                   f"Date: {format_date(ctx.get('doc_date')).replace('/', '-')}"]
+    date_txt = format_date(ctx.get("doc_date")).replace("/", "-")
+    right_lines = [f"Invoice No.: {ctx.get('doc_number', '')}", f"Date: {date_txt}"]
     if ctx.get("invoice_time"):
         right_lines.append(f"Time: {ctx['invoice_time']}")
-    right_lines.append(f"PO date: {format_date(ctx.get('doc_date')).replace('/', '-')}")
-    rows = max(len(left_lines), len(right_lines))
-    for i in range(rows):
-        pdf.set_font(pdf.font_family, "B" if i == 0 else "", 8.5)
+    right_lines.append(f"PO date: {date_txt}")
+    for i in range(max(len(left_lines), len(right_lines))):
+        pdf.set_font(pdf.font_family, "B" if i == 0 else "", 7.8)
         pdf.set_x(left)
-        pdf.cell(half, 4.6, pdf._t(left_lines[i] if i < len(left_lines) else ""), new_x="END", new_y="LAST")
-        pdf.set_font(pdf.font_family, "", 8.5)
+        pdf.cell(half, 4.1, pdf._t(left_lines[i] if i < len(left_lines) else ""), new_x="END", new_y="LAST")
+        pdf.set_font(pdf.font_family, "", 7.8)
         pdf.set_x(left + half)
-        pdf.cell(half, 4.6, pdf._t(right_lines[i] if i < len(right_lines) else ""), align="R",
+        pdf.cell(half, 4.1, pdf._t(right_lines[i] if i < len(right_lines) else ""), align="R",
                  new_x="LMARGIN", new_y="NEXT")
-    pdf.set_y(max(pdf.get_y(), block_top) + 4)
+    pdf.ln(3)
 
-    # --- Items table ------------------------------------------------------
+    # --- Items table -----------------------------------------------------
     headers = ["Services/Equipment", "Starting Date", "Till Date", "Days", "Price", "Amount"]
-    widths = [62.0, 26.0, 26.0, 16.0, 28.0, 28.0]
+    widths = [74.0, 26.0, 26.0, 18.0, 20.0, 22.0]
     aligns = ["L", "C", "C", "C", "R", "R"]
     pdf.set_fill_color(*pdf.brand_rgb)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font(pdf.font_family, "B", 8.5)
+    pdf.set_font(pdf.font_family, "B", 7.8)
+    pdf.set_x(left)
     for h, w, a in zip(headers, widths, aligns):
-        pdf.cell(w, 7.5, pdf._t(h), align=a, fill=True)
+        pdf.cell(w, 6, pdf._t(h), align=a, fill=True)
     pdf.ln()
-    pdf.set_font(pdf.font_family, "", 8.5)
+    pdf.set_font(pdf.font_family, "", 7.8)
     pdf.set_text_color(30, 30, 30)
-    pdf.set_draw_color(228, 232, 236)
+    pdf.set_draw_color(232, 235, 238)
     pdf.set_line_width(0.2)
     for it in ctx.get("items", []):
-        if pdf.get_y() > 250:
+        if pdf.get_y() > 255:
             pdf.add_page()
         desc = str(it.get("description", ""))
         if it.get("serial_number"):
             desc += f" (S/N: {it['serial_number']})"
-        cells = [desc[:46],
-                 format_date(it.get("start_date")), format_date(it.get("end_date")),
-                 format_qty(it.get("quantity")), format_inr(it.get("rate")), format_inr(it.get("amount"))]
+        cells = [desc[:52], format_date(it.get("start_date")), format_date(it.get("end_date")),
+                 format_qty(it.get("quantity")), format_inr_doc(it.get("rate")), format_inr_doc(it.get("amount"))]
+        pdf.set_x(left)
         for val, w, a in zip(cells, widths, aligns):
-            pdf.cell(w, 7, pdf._t(val), align=a, border="B")
+            pdf.cell(w, 5.8, pdf._t(val), align=a, border="B")
         pdf.ln()
-    pdf.ln(5)
+    pdf.ln(4)
 
-    # --- Left column (words / payment type / terms / bank) ----------------
-    col_w = 92.0
-    right_x = left + col_w + 10
+    # --- Two columns: 58% left / 40% right (as in the sample) ------------
+    col_left = usable * 0.58
+    gap = usable * 0.02
+    col_right = usable - col_left - gap
+    right_x = left + col_left + gap
     start_y = pdf.get_y()
 
     pdf.set_xy(left, start_y)
-    pdf.band("Invoice Amount in Words", col_w)
-    pdf.set_font(pdf.font_family, "", 8.5)
+    pdf.band("Invoice Amount in Words", col_left, left)
+    pdf.set_font(pdf.font_family, "", 7.8)
     pdf.set_x(left)
-    pdf.multi_cell(col_w, 4.6, pdf._t(ctx.get("amount_words", "")), new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(1.5)
+    pdf.multi_cell(col_left, 4.1, pdf._t(ctx.get("amount_words", "")), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(1)
 
+    pdf.band("Payment Type", col_left, left)
+    pdf.set_font(pdf.font_family, "", 7.8)
     pdf.set_x(left)
-    pdf.band("Payment Type", col_w)
-    pdf.set_font(pdf.font_family, "", 8.5)
-    pdf.set_x(left)
-    pdf.multi_cell(col_w, 4.6, pdf._t(ctx.get("payment_type", "")), new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(1.5)
+    pdf.multi_cell(col_left, 4.1, pdf._t(ctx.get("payment_type", "")), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(1)
 
     if company.get("terms"):
+        pdf.band("Terms and conditions", col_left, left)
+        pdf.set_font(pdf.font_family, "", 7.5)
         pdf.set_x(left)
-        pdf.band("Terms and conditions", col_w)
-        pdf.set_font(pdf.font_family, "", 8)
-        pdf.set_x(left)
-        pdf.multi_cell(col_w, 4.3, pdf._t(company["terms"]), new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(1.5)
+        pdf.multi_cell(col_left, 3.9, pdf._t(company["terms"]), new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
 
     bl = company.get("bank_lines") or bank_lines(company)
     qr = str(company.get("upi_qr") or "")
     qr_path = Path(UPLOAD_DIR) / qr if qr else None
     has_qr = bool(qr_path and qr_path.exists())
     if bl or has_qr:
-        pdf.set_x(left)
-        pdf.band("Bank Details", col_w)
+        pdf.band("Bank Details", col_left, left)
         bank_top = pdf.get_y() + 1
-        text_x = left + (22 if has_qr else 0)
+        text_x = left + (20 if has_qr else 0)
         if has_qr:
             try:
-                pdf.image(str(qr_path), x=left, y=bank_top, w=20, h=20)
+                pdf.image(str(qr_path), x=left, y=bank_top, w=18, h=18)
             except Exception:
                 text_x = left
         detail = []
@@ -615,72 +614,68 @@ def render_wecare_invoice(ctx: dict) -> bytes:
             detail.append("IFSC code: " + str(company["ifsc"]))
         if company.get("account_name"):
             detail.append("Account Holder's Name: " + str(company["account_name"]))
-        if company.get("upi_details"):
-            detail.append("UPI: " + str(company["upi_details"]))
         if not detail:
             detail = list(bl)
-        pdf.set_font(pdf.font_family, "", 8)
+        pdf.set_font(pdf.font_family, "", 7.5)
         pdf.set_xy(text_x, bank_top)
         for line in detail:
             pdf.set_x(text_x)
-            pdf.multi_cell(left + col_w - text_x, 4.2, pdf._t(line), new_x="LMARGIN", new_y="NEXT")
-        pdf.set_y(max(pdf.get_y(), bank_top + (21 if has_qr else 0)))
+            pdf.multi_cell(left + col_left - text_x, 3.9, pdf._t(line), new_x="LMARGIN", new_y="NEXT")
+        pdf.set_y(max(pdf.get_y(), bank_top + (19 if has_qr else 0)))
     left_bottom = pdf.get_y()
 
-    # --- Right column (amounts + signature) -------------------------------
+    # --- Amounts panel ----------------------------------------------------
     pdf.set_xy(right_x, start_y)
-    pdf.band("Amounts", col_w)
-    pdf.set_font(pdf.font_family, "", 8.5)
-    amounts: list[tuple[str, str, bool]] = [("Sub Total", format_inr(bill.get("subtotal")), False)]
+    pdf.band("Amounts", col_right, right_x)
+
     def _f(key):
         try:
             return float(bill.get(key, 0) or 0)
         except Exception:
             return 0.0
+
+    rows: list[tuple[str, str, bool]] = [("Sub Total", format_inr_doc(bill.get("subtotal")), False)]
     if _f("discount"):
-        amounts.append(("Discount", "- " + format_inr(bill.get("discount")), False))
+        rows.append(("Discount", "- " + format_inr_doc(bill.get("discount")), False))
     if _f("tax"):
-        amounts.append((f"Tax ({bill.get('tax_rate')}%)", format_inr(bill.get("tax")), False))
+        rows.append((f"Tax ({bill.get('tax_rate')}%)", format_inr_doc(bill.get("tax")), False))
     for key, label in (("damage_charges", "Damage Charges"), ("loss_charges", "Loss Charges"),
                        ("other_charges", "Other Charges"), ("deposit", "Security Deposit")):
         if _f(key):
-            amounts.append((label, format_inr(bill.get(key)), False))
-    amounts.append(("Total", format_inr(bill.get("grand_total")), True))
-    amounts.append(("Received", format_inr(ctx.get("net_received", 0)), False))
-    if _f("remaining_amount"):
-        amounts.append(("Balance", format_inr(bill.get("remaining_amount")), False))
-    for label, value, strong in amounts:
+            rows.append((label, format_inr_doc(bill.get(key)), False))
+    rows.append(("Total", format_inr_doc(bill.get("grand_total")), True))
+    rows.append(("Received", format_inr_doc(ctx.get("net_received", 0)), False))
+    for label, value, strong in rows:
         pdf.set_x(right_x)
-        pdf.set_font(pdf.font_family, "B" if strong else "", 9.5 if strong else 8.5)
-        pdf.set_text_color(30, 30, 30)
-        pdf.cell(col_w * 0.55, 5.6, pdf._t(label), border="B", new_x="END", new_y="LAST")
-        pdf.cell(col_w * 0.45, 5.6, pdf._t(value), align="R", border="B", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font(pdf.font_family, "B" if strong else "", 9 if strong else 7.8)
+        pdf.set_text_color(25, 25, 25)
+        pdf.set_draw_color(236, 239, 242)
+        pdf.cell(col_right * 0.5, 5, pdf._t(label), border="B", new_x="END", new_y="LAST")
+        pdf.cell(col_right * 0.5, 5, pdf._t(value), align="R", border="B", new_x="LMARGIN", new_y="NEXT")
 
-    sign_y = max(pdf.get_y() + 14, left_bottom - 26)
+    pdf.set_y(max(pdf.get_y(), left_bottom) + 3)
+    if company.get("declaration"):
+        pdf.set_x(left)
+        pdf.set_font(pdf.font_family, "", 7)
+        pdf.set_text_color(95, 100, 110)
+        pdf.multi_cell(usable, 3.8, pdf._t(company["declaration"]), new_x="LMARGIN", new_y="NEXT")
+
     sign = str(company.get("signature_image") or "")
     sign_path = Path(UPLOAD_DIR) / sign if sign else None
     if sign_path and sign_path.exists():
+        pdf.ln(6)
+        y = pdf.get_y()
         try:
-            pdf.image(str(sign_path), x=right_x + col_w / 2 - 15, y=sign_y - 12, h=11)
+            pdf.image(str(sign_path), x=right_edge - 38, y=y, h=11)
         except Exception:
             pass
-    pdf.set_xy(right_x, sign_y)
-    pdf.set_draw_color(150, 160, 170)
-    pdf.line(right_x + 10, sign_y, right_x + col_w - 10, sign_y)
-    pdf.set_font(pdf.font_family, "", 8.5)
-    pdf.set_text_color(40, 40, 40)
-    pdf.cell(col_w, 5, pdf._t(f"For {company.get('brand_name', '')}"), align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_x(right_x)
-    pdf.set_font(pdf.font_family, "B", 8.5)
-    pdf.cell(col_w, 5, pdf._t(company.get("signature_name", "Authorized Signatory")), align="C",
-             new_x="LMARGIN", new_y="NEXT")
-
-    pdf.set_y(max(pdf.get_y(), left_bottom) + 4)
-    if company.get("declaration"):
-        pdf.set_x(left)
-        pdf.set_font(pdf.font_family, "", 7.5)
-        pdf.set_text_color(95, 100, 110)
-        pdf.multi_cell(usable, 4, pdf._t(company["declaration"]), new_x="LMARGIN", new_y="NEXT")
+        pdf.set_xy(left, y + 12)
+        pdf.set_font(pdf.font_family, "", 7.8)
+        pdf.set_text_color(40, 40, 40)
+        pdf.cell(usable, 4, pdf._t(f"For {company.get('brand_name', '')}"), align="R", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font(pdf.font_family, "B", 7.8)
+        pdf.cell(usable, 4, pdf._t(company.get("signature_name", "Authorized Signatory")), align="R",
+                 new_x="LMARGIN", new_y="NEXT")
     return io.BytesIO(pdf.output()).getvalue()
 
 

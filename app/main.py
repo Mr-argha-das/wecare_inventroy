@@ -12,7 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import config, database as db
 from .permissions import ALL_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS, dump_permissions
 from .security import hash_password
-from .utils import amount_in_words, format_date, format_datetime, format_inr, format_qty
+from .utils import amount_in_words, format_date, format_datetime, format_inr, format_inr_doc, format_qty
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -50,6 +50,7 @@ templates.env.filters["ddmmyyyy"] = format_date
 templates.env.filters["dt"] = format_datetime
 templates.env.filters["words"] = amount_in_words
 templates.env.filters["qty"] = format_qty
+templates.env.filters["inrdoc"] = format_inr_doc
 templates.env.globals["inr"] = format_inr
 templates.env.globals["ddmmyyyy"] = format_date
 templates.env.globals["amount_in_words"] = amount_in_words

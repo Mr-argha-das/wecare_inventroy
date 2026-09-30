@@ -215,3 +215,29 @@ def format_qty(value: object) -> str:
     except Exception:
         return str(value or "")
     return str(int(f)) if f == int(f) else (f"{f:g}")
+
+
+def format_inr_doc(amount: object) -> str:
+    """Invoice-style amount: '₹ 39,750.0' — currency symbol, space, Indian
+    grouping and a single decimal when the value has no paise."""
+    try:
+        value = float(amount or 0)
+    except Exception:
+        value = 0.0
+    neg = value < 0
+    value = abs(value)
+    cents = round(value * 100) % 100
+    decimals = 1 if cents % 10 == 0 else 2
+    s = f"{value:,.{decimals}f}"
+    head, _, tail = s.partition(".")
+    head = head.replace(",", "")
+    if len(head) > 3:
+        last3, rest = head[-3:], head[:-3]
+        groups = []
+        while rest:
+            groups.insert(0, rest[-2:])
+            rest = rest[:-2]
+        head = ",".join(groups) + "," + last3
+    if decimals == 1:
+        tail = tail[:1]
+    return f"{'-' if neg else ''}{CURRENCY_SYMBOL} {head}.{tail}"
