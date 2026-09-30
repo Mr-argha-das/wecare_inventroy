@@ -13,8 +13,9 @@
 
 {% set c = ctx.company %}
 {% set tpl = c.template|default('A') %}
+{% set brand = c.brand_color|default('#174478') %}
 <div class="print-area">
-<div class="doc">
+<div class="doc" style="--brand: {{ brand }}; --brand-soft: color-mix(in srgb, {{ brand }} 12%, #ffffff); --brand-dark: color-mix(in srgb, {{ brand }} 70%, #000000);">
   <div class="doc-header template-{{ tpl }}">
     <div class="doc-brand">
       {% if c.logo %}<img src="/static/uploads/{{ c.logo }}" alt="Logo">{% endif %}
@@ -24,6 +25,7 @@
           {% if c.address %}{{ c.address }}<br>{% endif %}
           {% if c.mobile %}Mobile: {{ c.mobile }}{% endif %}
           {% if c.email %} &nbsp; Email: {{ c.email }}{% endif %}
+          {% if c.website %}<br>{{ c.website }}{% endif %}
           {% if c.gstin %}<br>GSTIN: {{ c.gstin }}{% endif %}
         </div>
       </div>
@@ -208,19 +210,33 @@
     {% endif %}
   </div>
   <div class="doc-foot">
-    {% if c.bank_details or c.upi_details %}
+    {% if c.bank_lines %}
     <div class="doc-section-title">PAYMENT DETAILS</div>
-    {% if c.bank_details %}<p style="white-space:pre-line">{{ c.bank_details }}</p>{% endif %}
-    {% if c.upi_details %}<p>UPI: {{ c.upi_details }}</p>{% endif %}
+    <div class="doc-pay">
+      <div class="pay-lines">
+        {% for line in c.bank_lines %}<p>{{ line }}</p>{% endfor %}
+      </div>
+      {% if c.upi_qr %}
+      <div class="doc-qr">
+        <img src="/static/uploads/{{ c.upi_qr }}" alt="UPI QR code">
+        Scan to pay
+      </div>
+      {% endif %}
+    </div>
     {% endif %}
     {% if c.terms and doc_type != 'service_agreement' %}
     <div class="doc-section-title">TERMS &amp; CONDITIONS</div>
     <p style="white-space:pre-line">{{ c.terms }}</p>
     {% endif %}
+    {% if c.declaration %}<div class="doc-declaration">{{ c.declaration }}</div>{% endif %}
     <div class="doc-sign">
       <div>Received By</div>
-      <div>For {{ c.brand_name }}<br>{{ c.signature_name }}</div>
+      <div>
+        {% if c.signature_image %}<img class="sign-img" src="/static/uploads/{{ c.signature_image }}" alt="Signature">{% endif %}
+        For {{ c.brand_name }}<br>{{ c.signature_name }}
+      </div>
     </div>
+    {% if c.footer_note %}<div class="doc-footer-note">{{ c.footer_note }}</div>{% endif %}
   </div>
 </div>
 </div>

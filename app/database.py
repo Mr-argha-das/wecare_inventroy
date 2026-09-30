@@ -498,9 +498,19 @@ def generate_patient_id() -> str:
     return f"WC-P-{_next_sequence('patients', 'patient_id', 'WC-P-'):06d}"
 
 
+DEFAULT_INVOICE_PREFIX = "WC-INV"
+
+
+def invoice_prefix() -> str:
+    """Admin-configurable invoice prefix (Settings -> Company)."""
+    raw = get_setting("company_settings", "invoice_prefix", "") or DEFAULT_INVOICE_PREFIX
+    cleaned = "".join(ch for ch in str(raw).upper() if ch.isalnum() or ch in "-_").strip("-_")
+    return cleaned or DEFAULT_INVOICE_PREFIX
+
+
 def generate_bill_number(bill_date: str | None = None) -> str:
     year = (bill_date or today_str())[:4]
-    prefix = f"WC-INV-{year}-"
+    prefix = f"{invoice_prefix()}-{year}-"
     return f"{prefix}{_next_sequence('bills', 'bill_number', prefix):06d}"
 
 

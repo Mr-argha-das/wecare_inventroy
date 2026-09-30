@@ -22,19 +22,58 @@
         <div class="field"><label>Default GST Rate (%)</label><input type="number" min="0" max="100" step="0.01" name="gst_rate" value="{{ company.gst_rate|default('0') }}"></div>
         <div class="field"><label>Signature Name</label><input name="signature_name" value="{{ company.signature_name|default('Authorized Signatory') }}"></div>
       </div>
+        <div class="field"><label>Website</label><input name="website" value="{{ company.website|default('') }}" placeholder="www.example.com"></div>
+        <div class="field"><label>Brand Colour (invoice header / bands)</label>
+          <input type="color" name="brand_color" value="{{ company.brand_color|default('#174478') }}" style="height:42px;padding:2px">
+        </div>
+        <div class="field"><label>Invoice Number Prefix</label><input name="invoice_prefix" value="{{ company.invoice_prefix|default('WC-INV') }}" placeholder="WC-INV">
+          <span class="small muted">New bills become <code>{{ company.invoice_prefix|default('WC-INV') }}-YYYY-000001</code>. Old bill numbers stay unchanged.</span>
+        </div>
+      </div>
       <div class="field"><label>Office Address</label><textarea name="address" rows="2">{{ company.address|default('') }}</textarea></div>
-      <div class="field"><label>Bank Details</label><textarea name="bank_details" rows="3" placeholder="Bank name, account no, IFSC, branch">{{ company.bank_details|default('') }}</textarea></div>
-      <div class="field"><label>UPI Details</label><input name="upi_details" value="{{ company.upi_details|default('') }}" placeholder="e.g. wecare@upi"></div>
+
+      <h4 class="mt">Bank Details (printed on every invoice)</h4>
+      <div class="form-grid">
+        <div class="field"><label>Bank Name</label><input name="bank_name" value="{{ company.bank_name|default('') }}"></div>
+        <div class="field"><label>Account Holder Name</label><input name="account_name" value="{{ company.account_name|default('') }}"></div>
+        <div class="field"><label>Account Number</label><input name="account_number" value="{{ company.account_number|default('') }}"></div>
+        <div class="field"><label>IFSC Code</label><input name="ifsc" value="{{ company.ifsc|default('') }}"></div>
+        <div class="field"><label>Branch</label><input name="branch" value="{{ company.branch|default('') }}"></div>
+        <div class="field"><label>UPI ID</label><input name="upi_details" value="{{ company.upi_details|default('') }}" placeholder="e.g. wecare@upi"></div>
+      </div>
+      <div class="field"><label>Extra Bank / Payment Note (optional)</label><textarea name="bank_details" rows="2" placeholder="Used only when the fields above are empty">{{ company.bank_details|default('') }}</textarea></div>
+
       <div class="field"><label>Invoice Terms &amp; Conditions</label><textarea name="terms" rows="5">{{ company.terms|default('') }}</textarea></div>
+      <div class="field"><label>Declaration</label><textarea name="declaration" rows="2" placeholder="We declare that this invoice shows the actual price of the services described.">{{ company.declaration|default('') }}</textarea></div>
+      <div class="field"><label>Invoice Footer Note</label><input name="footer_note" value="{{ company.footer_note|default('') }}" placeholder="e.g. Thank you for trusting us with your care."></div>
       <div class="btn-row"><button class="btn btn-primary" type="submit">Save Company Settings</button></div>
     </form>
-    <h3 class="mt">Logo</h3>
-    {% if company.logo %}<p><img src="/static/uploads/{{ company.logo }}" alt="Company logo" style="max-height:80px;border:1px solid var(--border);border-radius:8px;padding:6px;background:#fff"></p>{% endif %}
-    <form method="post" action="/settings/logo" enctype="multipart/form-data">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <div class="field"><label>Upload Logo (PNG/JPG/JPEG/WEBP, max 5 MB)</label><input type="file" name="logo" accept=".png,.jpg,.jpeg,.webp" required></div>
-      <div class="btn-row"><button class="btn btn-outline" type="submit">Upload Logo</button></div>
-    </form>
+
+    <h3 class="mt">Brand Images</h3>
+    <p class="small muted">PNG / JPG / JPEG / WEBP, max 5 MB each. Used on both the print page and the PDF.</p>
+    <div class="form-grid">
+      {% for key, label, hint in [
+          ('logo', 'Logo', 'Invoice header'),
+          ('signature_image', 'Signature Image', 'Above the signatory name'),
+          ('upi_qr', 'UPI QR Code', 'Inside the payment details box')] %}
+      <div class="card">
+        <strong>{{ label }}</strong>
+        <p class="small muted">{{ hint }}</p>
+        {% if company.get(key) %}
+        <p><img src="/static/uploads/{{ company.get(key) }}" alt="{{ label }}" style="max-height:80px;border:1px solid var(--border);border-radius:8px;padding:6px;background:#fff"></p>
+        <form method="post" action="/settings/image/{{ key }}/remove">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/settings/image/{{ key }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="field"><input type="file" name="image" accept=".png,.jpg,.jpeg,.webp" required></div>
+          <button class="btn btn-outline btn-sm" type="submit">Upload {{ label }}</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 
   <div class="card" data-tab-panel="billing" style="display:none">
@@ -63,7 +102,9 @@
       </div>
       <div class="btn-row"><button class="btn btn-primary" type="submit">Save Template</button></div>
     </form>
-    <p class="small muted">Logo, brand name, address, contact, GST, bank/UPI, terms and signature are pulled automatically from Company settings.</p>
+    <p class="small muted">Logo, brand name, brand colour, address, contact, GST, bank/UPI + QR, terms, declaration,
+      signature image and footer note are pulled automatically from <strong>Company &amp; Brand</strong> settings —
+      every newly created invoice (print page and PDF) uses the latest saved values.</p>
   </div>
 
   <div class="card" data-tab-panel="backup" style="display:none">

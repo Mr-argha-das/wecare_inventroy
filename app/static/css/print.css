@@ -15,26 +15,26 @@
 /* Screen preview of printable documents */
 .print-area { background: #fff; color: #1c2b3a; }
 .doc { border: 1px solid #d7e0ea; border-radius: 10px; overflow: hidden; }
-.doc-header { padding: 18px 22px 12px; border-bottom: 3px solid #174478; }
-.doc-header.template-B { border-bottom: none; background: linear-gradient(135deg, #174478, #0e9f8a); color: #fff; }
-.doc-header.template-C { border: 2px solid #174478; margin: 10px; border-radius: 8px; }
+.doc-header { padding: 18px 22px 12px; border-bottom: 3px solid var(--brand, #174478); }
+.doc-header.template-B { border-bottom: none; background: linear-gradient(135deg, var(--brand, #174478), var(--brand-dark, #0e9f8a)); color: #fff; }
+.doc-header.template-C { border: 2px solid var(--brand, #174478); margin: 10px; border-radius: 8px; }
 .doc-brand { display: flex; align-items: center; gap: 14px; }
 .doc-brand img { max-height: 64px; max-width: 150px; object-fit: contain; }
 .doc-brand h1 { font-size: 24px; margin: 0; letter-spacing: 0.5px; }
 .doc-header.template-B .doc-brand h1, .doc-header.template-B .doc-meta { color: #fff; }
 .doc-meta { font-size: 12.5px; color: #54657c; margin-top: 4px; }
-.doc-title-band { background: #174478; color: #fff; text-align: center; font-weight: 800; letter-spacing: 1px; padding: 7px; font-size: 15px; margin: 12px 22px 0; border-radius: 6px; }
+.doc-title-band { background: var(--brand, #174478); color: #fff; text-align: center; font-weight: 800; letter-spacing: 1px; padding: 7px; font-size: 15px; margin: 12px 22px 0; border-radius: 6px; }
 .doc-body { padding: 12px 22px; }
 .doc-cols { display: flex; gap: 18px; flex-wrap: wrap; }
 .doc-cols > div { flex: 1; min-width: 220px; }
-.doc-section-title { font-weight: 800; color: #174478; border-bottom: 1px solid #d7e0ea; margin: 10px 0 6px; font-size: 12.5px; letter-spacing: 0.6px; }
+.doc-section-title { font-weight: 800; color: var(--brand, #174478); border-bottom: 1px solid #d7e0ea; margin: 10px 0 6px; font-size: 12.5px; letter-spacing: 0.6px; }
 table.doc-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
 table.doc-table th, table.doc-table td { border: 1px solid #c9d4e2; padding: 6px 8px; font-size: 12.5px; }
-table.doc-table th { background: #eaf1f9; color: #174478; }
+table.doc-table th { background: var(--brand-soft, #eaf1f9); color: var(--brand, #174478); }
 table.doc-table td.num, table.doc-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .doc-totals { margin-left: auto; width: 300px; margin-top: 8px; }
 .doc-totals td { padding: 3px 6px; font-size: 13px; }
-.doc-totals tr.grand td { font-weight: 800; font-size: 16px; color: #174478; border-top: 2px solid #174478; }
+.doc-totals tr.grand td { font-weight: 800; font-size: 16px; color: var(--brand, #174478); border-top: 2px solid var(--brand, #174478); }
 .doc-foot { padding: 10px 22px 18px; font-size: 12px; color: #3c4b61; }
 .doc-sign { display: flex; justify-content: space-between; margin-top: 34px; }
 .doc-sign div { text-align: center; min-width: 180px; border-top: 1px solid #555; padding-top: 4px; font-weight: 700; }
@@ -43,3 +43,13 @@ table.doc-table td.num, table.doc-table th.num { text-align: right; font-variant
   .doc-title-band { margin: 10px 0 0; }
   .doc-header, .doc-body, .doc-foot { padding-left: 0; padding-right: 0; }
 }
+
+/* Payment / signature blocks driven by admin branding settings */
+.doc-pay { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.doc-pay .pay-lines { flex: 1; min-width: 220px; }
+.doc-pay .pay-lines p { margin: 2px 0; }
+.doc-qr { text-align: center; font-size: 11px; color: #54657c; }
+.doc-qr img { max-height: 110px; max-width: 110px; object-fit: contain; display: block; margin: 0 auto 2px; }
+.doc-sign img.sign-img { max-height: 52px; max-width: 170px; object-fit: contain; display: block; margin: 0 auto 2px; }
+.doc-declaration { margin-top: 8px; font-size: 11.5px; color: #54657c; white-space: pre-line; }
+.doc-footer-note { margin-top: 10px; text-align: center; font-size: 12px; font-weight: 700; color: var(--brand, #174478); }
