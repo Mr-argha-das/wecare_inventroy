@@ -129,3 +129,9 @@ permissions, back-date rule, deposits, and activity logging.
    `uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2`
 3. Schedule regular backups (Settings → Backup, or copy `data/` + `app/static/uploads/`).
 4. Restrict file permissions on `data/`, `backups/` and `.env`.
+
+## Deployment
+
+See **[DEPLOY.md](DEPLOY.md)** for a step-by-step PM2 + nginx + HTTPS production setup
+(`ecosystem.config.js` is included). Run a single instance only — the Feather-file
+storage does not support concurrent writers.
