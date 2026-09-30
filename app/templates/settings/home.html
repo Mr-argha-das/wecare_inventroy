@@ -24,7 +24,7 @@
       </div>
         <div class="field"><label>Website</label><input name="website" value="{{ company.website|default('') }}" placeholder="www.example.com"></div>
         <div class="field"><label>Brand Colour (invoice header / bands)</label>
-          <input type="color" name="brand_color" value="{{ company.brand_color|default('#174478') }}" style="height:42px;padding:2px">
+          <input type="color" name="brand_color" value="{{ company.brand_color|default('#16a34a') }}" style="height:42px;padding:2px">
         </div>
         <div class="field"><label>Invoice Number Prefix</label><input name="invoice_prefix" value="{{ company.invoice_prefix|default('WC-INV') }}" placeholder="WC-INV">
           <span class="small muted">New bills become <code>{{ company.invoice_prefix|default('WC-INV') }}-YYYY-000001</code>. Old bill numbers stay unchanged.</span>
@@ -92,10 +92,10 @@
     <form method="post" action="/settings/documents">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-grid">
-        {% for t in ['A','B','C'] %}
+        {% for t in ['D','A','B','C'] %}
         <label class="card" style="cursor:pointer">
-          <input type="radio" name="template" value="{{ t }}" {% if docs.template|default('A')==t %}checked{% endif %}>
-          <strong>Template {{ t }}</strong>
+          <input type="radio" name="template" value="{{ t }}" {% if docs.template|default('D')==t %}checked{% endif %}>
+          <strong>Template {{ t }}{% if t=='D' %} — We Care{% endif %}</strong>
           <span class="small muted">{% if t=='A' %}Classic blue header{% elif t=='B' %}Gradient banner header{% else %}Bordered card header{% endif %}</span>
         </label>
         {% endfor %}

@@ -145,3 +145,73 @@ def client_ip(request) -> str:
     except Exception:
         pass
     return ""
+
+
+_ONES = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+         "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen",
+         "Eighteen", "Nineteen"]
+_TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+
+
+def _two_digits(n: int) -> str:
+    if n < 20:
+        return _ONES[n]
+    return (_TENS[n // 10] + (" " + _ONES[n % 10] if n % 10 else "")).strip()
+
+
+def _three_digits(n: int) -> str:
+    out = []
+    if n >= 100:
+        out.append(_ONES[n // 100] + " Hundred")
+        n %= 100
+        if n:
+            out.append("and " + _two_digits(n))
+    elif n:
+        out.append(_two_digits(n))
+    return " ".join(out)
+
+
+def number_to_words_indian(value: int) -> str:
+    """Convert an integer to words using the Indian numbering system."""
+    n = int(abs(value))
+    if n == 0:
+        return "Zero"
+    parts: list[str] = []
+    crore, n = divmod(n, 10_000_000)
+    lakh, n = divmod(n, 100_000)
+    thousand, n = divmod(n, 1000)
+    if crore:
+        parts.append(number_to_words_indian(crore) + " Crore")
+    if lakh:
+        parts.append(_three_digits(lakh) + " Lakh")
+    if thousand:
+        parts.append(_three_digits(thousand) + " Thousand")
+    if n:
+        parts.append(_three_digits(n))
+    return " ".join(p for p in parts if p).replace("  ", " ").strip()
+
+
+def amount_in_words(amount: object) -> str:
+    """'39750' -> 'Thirty Nine Thousand Seven Hundred and Fifty Rupees only'."""
+    try:
+        value = float(amount or 0)
+    except Exception:
+        value = 0.0
+    negative = value < 0
+    value = abs(round(value, 2))
+    rupees = int(value)
+    paise = int(round((value - rupees) * 100))
+    text = number_to_words_indian(rupees) + " Rupees"
+    if paise:
+        text += " and " + number_to_words_indian(paise) + " Paise"
+    text += " only"
+    return ("Minus " + text) if negative else text
+
+
+def format_qty(value: object) -> str:
+    """5.0 -> '5', 2.5 -> '2.5' (invoice 'Days'/'Qty' column)."""
+    try:
+        f = float(value or 0)
+    except Exception:
+        return str(value or "")
+    return str(int(f)) if f == int(f) else (f"{f:g}")

@@ -12,9 +12,15 @@
 </div>
 
 {% set c = ctx.company %}
-{% set tpl = c.template|default('A') %}
-{% set brand = c.brand_color|default('#174478') %}
+{% set tpl = c.template|default('D') %}
+{% set brand = c.brand_color|default('#16a34a') %}
+{% set wc_invoice = tpl == 'D' and doc_type in ['service_invoice','equipment_invoice','combined_invoice','bill'] %}
 <div class="print-area">
+{% if wc_invoice %}
+<div class="doc doc-plain" style="--brand: {{ brand }}; --brand-soft: color-mix(in srgb, {{ brand }} 12%, #ffffff); --brand-dark: color-mix(in srgb, {{ brand }} 70%, #000000);">
+  {% include "documents/_invoice_wecare.html" %}
+</div>
+{% else %}
 <div class="doc" style="--brand: {{ brand }}; --brand-soft: color-mix(in srgb, {{ brand }} 12%, #ffffff); --brand-dark: color-mix(in srgb, {{ brand }} 70%, #000000);">
   <div class="doc-header template-{{ tpl }}">
     <div class="doc-brand">
@@ -239,5 +245,6 @@
     {% if c.footer_note %}<div class="doc-footer-note">{{ c.footer_note }}</div>{% endif %}
   </div>
 </div>
+{% endif %}
 </div>
 {% endblock %}

@@ -93,9 +93,9 @@ async def settings_documents(request: Request, user: dict = Depends(require_perm
     if not validate_csrf(request.session, form.get("csrf_token")):
         flash(request, "Session expired. Please try again.", "error")
         return RedirectResponse(url="/settings", status_code=303)
-    template = str(form.get("template", "A")).upper()
-    if template not in ("A", "B", "C"):
-        template = "A"
+    template = str(form.get("template", "D")).upper()
+    if template not in ("A", "B", "C", "D"):
+        template = "D"
     before = db.get_all_settings("document_settings")
     db.set_setting("document_settings", "template", template)
     log_activity(user=user, action="CHANGE_SETTINGS", entity_type="settings", entity_id="documents",

@@ -1,0 +1,126 @@
+{# We Care green invoice layout (Template D) — matches the approved sample design.
+   Every colour, logo, bank line and note comes from Settings -> Company & Brand. #}
+{% set b = ctx.bill %}
+{% set p = ctx.patient %}
+<div class="wc-inv">
+
+  <div class="wc-top">
+    <div class="wc-logo">
+      {% if c.logo %}<img src="/static/uploads/{{ c.logo }}" alt="Logo">{% endif %}
+    </div>
+    <div class="wc-company">
+      <h1>{{ c.brand_name }}</h1>
+      {% if c.address %}<div>{{ c.address }}</div>{% endif %}
+      <div>
+        {% if c.mobile %}Phone no.: {{ c.mobile }}{% endif %}
+        {% if c.email %}{% if c.mobile %} {% endif %}Email: {{ c.email }}{% endif %}
+      </div>
+      {% if c.website %}<div>{{ c.website }}</div>{% endif %}
+      {% if c.account_number %}<div>{{ c.brand_name }}: {{ c.account_number }}</div>{% endif %}
+      {% if c.gstin %}<div>GST Number : {{ c.gstin }}</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="wc-rule"></div>
+  <div class="wc-doctitle">{{ ctx.title|title if ctx.title else 'Tax Invoice' }}</div>
+  <div class="wc-rule"></div>
+
+  <div class="wc-parties">
+    <div class="wc-billto">
+      <div class="wc-h">Bill To</div>
+      <div class="wc-strong">{{ p.patient_name }}</div>
+      {% if p.mobile %}<div>Contact no.: {{ p.mobile }}</div>{% endif %}
+      {% if p.address %}<div>{{ p.address }}</div>{% endif %}
+      {% if p.patient_id %}<div>Patient ID: {{ p.patient_id }}</div>{% endif %}
+    </div>
+    <div class="wc-invdetails">
+      <div class="wc-h">Invoice Details</div>
+      <div>Invoice No.: {{ ctx.doc_number }}</div>
+      <div>Date: {{ ctx.doc_date|ddmmyyyy|replace('/', '-') }}</div>
+      {% if ctx.invoice_time %}<div>Time: {{ ctx.invoice_time }}</div>{% endif %}
+      <div>PO date: {{ ctx.doc_date|ddmmyyyy|replace('/', '-') }}</div>
+    </div>
+  </div>
+
+  <table class="wc-table">
+    <thead>
+      <tr>
+        <th class="left">Services/Equipment</th>
+        <th>Starting Date</th>
+        <th>Till Date</th>
+        <th>Days</th>
+        <th class="num">Price</th>
+        <th class="num">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in ctx['items'] %}
+      <tr>
+        <td class="left">{{ it.description }}{% if it.serial_number %} <span class="muted">(S/N: {{ it.serial_number }})</span>{% endif %}</td>
+        <td>{{ it.start_date|ddmmyyyy if it.start_date else '-' }}</td>
+        <td>{{ it.end_date|ddmmyyyy if it.end_date else '-' }}</td>
+        <td>{{ it.quantity|qty }}</td>
+        <td class="num">{{ it.rate|inr }}</td>
+        <td class="num">{{ it.amount|inr }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="wc-grid">
+    <div class="wc-col">
+      <div class="wc-band">Invoice Amount in Words</div>
+      <div class="wc-boxtext">{{ ctx.amount_words }}</div>
+
+      <div class="wc-band">Payment Type</div>
+      <div class="wc-boxtext">{{ ctx.payment_type }}</div>
+
+      {% if c.terms %}
+      <div class="wc-band">Terms and conditions</div>
+      <div class="wc-boxtext wc-pre">{{ c.terms }}</div>
+      {% endif %}
+
+      {% if c.bank_lines or c.upi_qr %}
+      <div class="wc-band">Bank Details</div>
+      <div class="wc-bank">
+        {% if c.upi_qr %}<img class="wc-qr" src="/static/uploads/{{ c.upi_qr }}" alt="UPI QR">{% endif %}
+        <div class="wc-banklines">
+          {% if c.bank_name %}<div>Name: {{ c.bank_name }}{% if c.branch %}, {{ c.branch }}{% endif %}</div>{% endif %}
+          {% if c.account_number %}<div>Account No: {{ c.account_number }}</div>{% endif %}
+          {% if c.ifsc %}<div>IFSC code: {{ c.ifsc }}</div>{% endif %}
+          {% if c.account_name %}<div>Account Holder's Name: {{ c.account_name }}</div>{% endif %}
+          {% if c.upi_details %}<div>UPI: {{ c.upi_details }}</div>{% endif %}
+          {% if not c.bank_name and c.bank_details %}<div class="wc-pre">{{ c.bank_details }}</div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="wc-col">
+      <div class="wc-band">Amounts</div>
+      <table class="wc-amounts">
+        <tr><td>Sub Total</td><td class="num">{{ b.subtotal|inr }}</td></tr>
+        {% if b.discount and b.discount|float > 0 %}<tr><td>Discount</td><td class="num">- {{ b.discount|inr }}</td></tr>{% endif %}
+        {% if b.tax and b.tax|float > 0 %}<tr><td>Tax ({{ b.tax_rate }}%)</td><td class="num">{{ b.tax|inr }}</td></tr>{% endif %}
+        {% if b.damage_charges and b.damage_charges|float > 0 %}<tr><td>Damage Charges</td><td class="num">{{ b.damage_charges|inr }}</td></tr>{% endif %}
+        {% if b.loss_charges and b.loss_charges|float > 0 %}<tr><td>Loss Charges</td><td class="num">{{ b.loss_charges|inr }}</td></tr>{% endif %}
+        {% if b.other_charges and b.other_charges|float > 0 %}<tr><td>Other Charges</td><td class="num">{{ b.other_charges|inr }}</td></tr>{% endif %}
+        {% if b.deposit and b.deposit|float > 0 %}<tr><td>Security Deposit</td><td class="num">{{ b.deposit|inr }}</td></tr>{% endif %}
+        <tr class="wc-total"><td>Total</td><td class="num">{{ b.grand_total|inr }}</td></tr>
+        <tr><td>Received</td><td class="num">{{ ctx.net_received|inr }}</td></tr>
+        {% if b.remaining_amount and b.remaining_amount|float > 0 %}
+        <tr class="wc-balance"><td>Balance</td><td class="num">{{ b.remaining_amount|inr }}</td></tr>
+        {% endif %}
+      </table>
+
+      <div class="wc-sign">
+        {% if c.signature_image %}<img src="/static/uploads/{{ c.signature_image }}" alt="Signature">{% endif %}
+        <div class="wc-signline">For {{ c.brand_name }}</div>
+        <div class="wc-strong">{{ c.signature_name }}</div>
+      </div>
+    </div>
+  </div>
+
+  {% if c.declaration %}<div class="wc-declaration">{{ c.declaration }}</div>{% endif %}
+  {% if c.footer_note %}<div class="wc-footnote">{{ c.footer_note }}</div>{% endif %}
+</div>
