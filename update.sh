@@ -79,7 +79,7 @@ fi
 cat <<'NEXT'
 
 Next steps in the browser (one time only):
-  1. Settings -> Documents  -> select "Template D — We Care" -> Save
-  2. Settings -> Company & Brand -> logo, UPI QR, bank details, brand colour -> Save
-  3. Open any bill -> Print / Download PDF to verify the new invoice format
+  1. Settings -> Company & Brand -> address, GSTIN, bank details, logo, UPI QR -> Save
+  2. Settings -> Invoice Design  -> heading, footer line, colours, show/hide options -> Save
+  3. Open any bill -> Print / Download PDF to verify the invoice format
 NEXT

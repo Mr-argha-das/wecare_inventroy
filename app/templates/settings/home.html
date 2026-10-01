@@ -1,61 +1,66 @@
 {% extends "base.html" %}
 {% block title %}Settings{% endblock %}
+{% macro onoff(key, label, hint, default) -%}
+<label class="field" style="display:flex;gap:8px;align-items:flex-start">
+  <input type="checkbox" name="{{ key }}" value="1" style="width:auto;margin-top:3px"
+         {% if company.get(key, '1' if default else '0') not in ['0', 'false', 'no', ''] %}checked{% endif %}>
+  <span><strong>{{ label }}</strong><br><span class="small muted">{{ hint }}</span></span>
+</label>
+{%- endmacro %}
 {% block content %}
 <div class="page-head"><h2>Settings</h2></div>
 <div data-tabs-scope>
   <div class="tabs no-print" data-tabs>
     <button type="button" class="active" data-tab="company">Company &amp; Brand</button>
+    <button type="button" data-tab="invoice">Invoice Design</button>
     <button type="button" data-tab="billing">Billing &amp; GST</button>
-    <button type="button" data-tab="documents">Documents</button>
     <button type="button" data-tab="backup">Backup</button>
   </div>
 
+  <!-- ================= Company & Brand ================= -->
   <div class="card" data-tab-panel="company">
     <h3>Company / Brand Settings</h3>
+    <p class="small muted">These values print on every invoice, receipt and statement — change them here and
+      every document generated afterwards (screen, print and PDF) picks them up automatically.</p>
     <form method="post" action="/settings/company" id="companyFull">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-grid">
         <div class="field"><label>Brand Name <span class="req">*</span></label><input name="brand_name" value="{{ company.brand_name|default('WE CARE HOME HEALTHCARE') }}" required></div>
-        <div class="field"><label>Mobile Numbers</label><input name="mobile" value="{{ company.mobile|default('') }}" placeholder="e.g. 98765 43210, 91234 56780"></div>
+        <div class="field"><label>Mobile Numbers</label><input name="mobile" value="{{ company.mobile|default('') }}" placeholder="e.g. 9929144275"></div>
         <div class="field"><label>Email</label><input name="email" value="{{ company.email|default('') }}"></div>
-        <div class="field"><label>GSTIN</label><input name="gstin" value="{{ company.gstin|default('') }}"></div>
+        <div class="field"><label>GSTIN</label><input name="gstin" value="{{ company.gstin|default('') }}" placeholder="08BGLPG814P1Z7"></div>
         <div class="field"><label>Default GST Rate (%)</label><input type="number" min="0" max="100" step="0.01" name="gst_rate" value="{{ company.gst_rate|default('0') }}"></div>
-        <div class="field"><label>Signature Name</label><input name="signature_name" value="{{ company.signature_name|default('Authorized Signatory') }}"></div>
-      </div>
         <div class="field"><label>Website</label><input name="website" value="{{ company.website|default('') }}" placeholder="www.example.com"></div>
-        <div class="field"><label>Brand Colour (invoice header / bands)</label>
-          <input type="color" name="brand_color" value="{{ company.brand_color|default('#16a34a') }}" style="height:42px;padding:2px">
-        </div>
+        <div class="field"><label>Signature Name</label><input name="signature_name" value="{{ company.signature_name|default('Authorized Signatory') }}"></div>
         <div class="field"><label>Invoice Number Prefix</label><input name="invoice_prefix" value="{{ company.invoice_prefix|default('WC-INV') }}" placeholder="WC-INV">
           <span class="small muted">New bills become <code>{{ company.invoice_prefix|default('WC-INV') }}-YYYY-000001</code>. Old bill numbers stay unchanged.</span>
         </div>
       </div>
-      <div class="field"><label>Office Address</label><textarea name="address" rows="2">{{ company.address|default('') }}</textarea></div>
+      <div class="field"><label>Office Address</label>
+        <textarea name="address" rows="2" placeholder="One line per row — printed exactly like this under the brand name">{{ company.address|default('') }}</textarea>
+      </div>
 
-      <h4 class="mt">Bank Details (printed on every invoice)</h4>
+      <h4 class="mt">Bank Details (printed in the Bank Details box of every invoice)</h4>
       <div class="form-grid">
-        <div class="field"><label>Bank Name</label><input name="bank_name" value="{{ company.bank_name|default('') }}"></div>
-        <div class="field"><label>Account Holder Name</label><input name="account_name" value="{{ company.account_name|default('') }}"></div>
+        <div class="field"><label>Bank Name</label><input name="bank_name" value="{{ company.bank_name|default('') }}" placeholder="Kotak Mahindra Bank Limited"></div>
+        <div class="field"><label>Branch</label><input name="branch" value="{{ company.branch|default('') }}" placeholder="Prahladnagar Branch"></div>
         <div class="field"><label>Account Number</label><input name="account_number" value="{{ company.account_number|default('') }}"></div>
         <div class="field"><label>IFSC Code</label><input name="ifsc" value="{{ company.ifsc|default('') }}"></div>
-        <div class="field"><label>Branch</label><input name="branch" value="{{ company.branch|default('') }}"></div>
+        <div class="field"><label>Account Holder Name</label><input name="account_name" value="{{ company.account_name|default('') }}"></div>
         <div class="field"><label>UPI ID</label><input name="upi_details" value="{{ company.upi_details|default('') }}" placeholder="e.g. wecare@upi"></div>
       </div>
       <div class="field"><label>Extra Bank / Payment Note (optional)</label><textarea name="bank_details" rows="2" placeholder="Used only when the fields above are empty">{{ company.bank_details|default('') }}</textarea></div>
-
-      <div class="field"><label>Invoice Terms &amp; Conditions</label><textarea name="terms" rows="5">{{ company.terms|default('') }}</textarea></div>
-      <div class="field"><label>Declaration</label><textarea name="declaration" rows="2" placeholder="We declare that this invoice shows the actual price of the services described.">{{ company.declaration|default('') }}</textarea></div>
-      <div class="field"><label>Invoice Footer Note</label><input name="footer_note" value="{{ company.footer_note|default('') }}" placeholder="e.g. Thank you for trusting us with your care."></div>
-      <div class="btn-row"><button class="btn btn-primary" type="submit">Save Company Settings</button></div>
+      <div class="btn-row"><button class="btn btn-primary" type="submit">Save Company &amp; Bank Details</button></div>
     </form>
 
     <h3 class="mt">Brand Images</h3>
-    <p class="small muted">PNG / JPG / JPEG / WEBP, max 5 MB each. Used on both the print page and the PDF.</p>
+    <p class="small muted">PNG / JPG / JPEG / WEBP, max {{ 5 }} MB each. Used on the print page and in the PDF.</p>
     <div class="form-grid">
       {% for key, label, hint in [
-          ('logo', 'Logo', 'Invoice header'),
-          ('signature_image', 'Signature Image', 'Above the signatory name'),
-          ('upi_qr', 'UPI QR Code', 'Inside the payment details box')] %}
+          ('logo', 'Logo', 'Top-left of every document (19 x 28 mm box)'),
+          ('upi_qr', 'UPI QR Code', 'Inside the Bank Details box (20 x 24 mm)'),
+          ('signature_image', 'Signature Image', 'Above the signatory name (switch it on in Invoice Design)'),
+          ('footer_image', 'Footer Image', 'Optional small logo at the bottom-right (36 mm wide)')] %}
       <div class="card">
         <strong>{{ label }}</strong>
         <p class="small muted">{{ hint }}</p>
@@ -76,6 +81,64 @@
     </div>
   </div>
 
+  <!-- ================= Invoice Design ================= -->
+  <div class="card" data-tab-panel="invoice" style="display:none">
+    <h3>Invoice Design</h3>
+    <p class="small muted">Every invoice, receipt, statement and quotation uses one standard A4 design.
+      What you change here applies to the print page <strong>and</strong> the downloaded PDF.</p>
+    <form method="post" action="/settings/invoice-design">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-grid">
+        <div class="field"><label>Invoice Heading</label>
+          <input name="invoice_title" value="{{ company.invoice_title|default('Tax Invoice') }}" placeholder="Tax Invoice">
+          <span class="small muted">Shown in the green band under the header.</span>
+        </div>
+        <div class="field"><label>Extra Header Line</label>
+          <input name="header_note" value="{{ company.header_note|default('') }}" placeholder="e.g. We Care Home Healthcare: 006622001300341">
+          <span class="small muted">Printed right under phone / email.</span>
+        </div>
+        <div class="field"><label>Footer Line (bottom-left)</label>
+          <input name="footer_text" value="{{ company.footer_text|default(company.website|default('')) }}" placeholder="www.yourwebsite.in">
+        </div>
+        <div class="field"><label>Invoice Colour (bands + table head)</label>
+          <input type="color" name="invoice_color" value="{{ company.invoice_color|default('#008d09') }}" style="height:42px;padding:2px">
+        </div>
+        <div class="field"><label>Footer Link Colour</label>
+          <input type="color" name="link_color" value="{{ company.link_color|default('#27a5d5') }}" style="height:42px;padding:2px">
+        </div>
+      </div>
+
+      <h4 class="mt">Show / hide on the document</h4>
+      <div class="form-grid">
+        {{ onoff('show_po_date', 'PO date line', 'Adds "PO date" under the invoice date', true) }}
+        {{ onoff('show_time', 'Time', 'Time the bill was created', true) }}
+        {{ onoff('show_qr', 'UPI QR code', 'QR inside the Bank Details box', true) }}
+        {{ onoff('show_page_number', 'Page number', 'Grey page chip at the bottom-left', true) }}
+        {{ onoff('show_signature', 'Signature block', 'Signature image + name under the Amounts panel', false) }}
+      </div>
+
+      <div class="btn-row"><button class="btn btn-primary" type="submit">Save Invoice Design</button></div>
+    </form>
+
+    <form method="post" action="/settings/company" id="invoiceTextForm" class="mt">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field"><label>Terms and conditions (left column of the invoice)</label>
+        <textarea name="terms" rows="4" placeholder="1.The deposit will be refunded upon service closure.">{{ company.terms|default('') }}</textarea></div>
+      <div class="field"><label>Declaration (small print under the totals)</label>
+        <textarea name="declaration" rows="2" placeholder="We declare that this invoice shows the actual price of the services described.">{{ company.declaration|default('') }}</textarea></div>
+      <div class="field"><label>Internal Footer Note (reports / emails)</label>
+        <input name="footer_note" value="{{ company.footer_note|default('') }}" placeholder="e.g. Thank you for trusting us with your care."></div>
+      <div class="btn-row"><button class="btn btn-outline" type="submit">Save Terms, Declaration &amp; Note</button></div>
+    </form>
+
+    {% if sample_bill_id %}
+    <p class="mt"><a class="btn btn-ghost btn-sm" href="/documents/combined_invoice/{{ sample_bill_id }}/print" target="_blank">Preview the invoice design</a></p>
+    {% else %}
+    <p class="small muted mt">Create a bill to preview the design.</p>
+    {% endif %}
+  </div>
+
+  <!-- ================= Billing & GST ================= -->
   <div class="card" data-tab-panel="billing" style="display:none">
     <h3>Billing, GST &amp; Payment Methods</h3>
     <dl class="kv">
@@ -83,30 +146,12 @@
       <dt>Payment Methods</dt><dd>Cash, UPI, Bank (UPI/Bank require Transaction ID)</dd>
       <dt>Currency</dt><dd>₹ (INR), dates in DD/MM/YYYY, timezone Asia/Kolkata</dd>
       <dt>Back-date Billing</dt><dd>Controlled by the <em>allow_backdate_billing</em> permission (Staff page). All back-dated bills are logged.</dd>
+      <dt>Document Design</dt><dd>One standard A4 design for all billing documents — see the <strong>Invoice Design</strong> tab.</dd>
     </dl>
     <p class="mt"><a class="btn btn-outline btn-sm" href="/staff">Manage Staff Permissions</a></p>
   </div>
 
-  <div class="card" data-tab-panel="documents" style="display:none">
-    <h3>Invoice Templates</h3>
-    <form method="post" action="/settings/documents">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <div class="form-grid">
-        {% for t in ['D','A','B','C'] %}
-        <label class="card" style="cursor:pointer">
-          <input type="radio" name="template" value="{{ t }}" {% if docs.template|default('D')==t %}checked{% endif %}>
-          <strong>Template {{ t }}{% if t=='D' %} — We Care{% endif %}</strong>
-          <span class="small muted">{% if t=='A' %}Classic blue header{% elif t=='B' %}Gradient banner header{% else %}Bordered card header{% endif %}</span>
-        </label>
-        {% endfor %}
-      </div>
-      <div class="btn-row"><button class="btn btn-primary" type="submit">Save Template</button></div>
-    </form>
-    <p class="small muted">Logo, brand name, brand colour, address, contact, GST, bank/UPI + QR, terms, declaration,
-      signature image and footer note are pulled automatically from <strong>Company &amp; Brand</strong> settings —
-      every newly created invoice (print page and PDF) uses the latest saved values.</p>
-  </div>
-
+  <!-- ================= Backup ================= -->
   <div class="card" data-tab-panel="backup" style="display:none">
     <h3>Backup</h3>
     <p class="muted">Creates a timestamped backup of all Feather data files and uploads under <code>backups/</code>. Backups are not publicly accessible.</p>

@@ -1,0 +1,108 @@
+{# ---------------------------------------------------------------------------
+   Shared A4 billing document body — the ONE layout used by every printed
+   invoice / receipt / statement and by the generated PDF.
+
+   Expected context:
+     doc        : normalised document model (services/invoice_layout.py)
+     asset_base : URL prefix for uploaded images ("/static/uploads/" on screen,
+                  "file:///.../uploads/" when rendering a PDF from HTML)
+   --------------------------------------------------------------------------- #}
+{% set c = doc.company %}
+{% for page in doc.pages %}
+<div class="page">
+
+  <div class="header">
+    {% if c.logo %}<img class="logo" src="{{ asset_base }}{{ c.logo }}" alt="Logo">{% endif %}
+    <div class="company">
+      <div class="name">{{ c.brand_name }}</div>
+      {% for line in c.header_lines %}<div class="line">{{ line }}</div>{% endfor %}
+      {% if c.gstin %}<div class="gst">GST Number : {{ c.gstin }}</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="green-line"></div>
+  <div class="invoice-title">{{ doc.title }}</div>
+
+  <div class="meta">
+    <div class="bill-to">
+      <div class="label">{{ doc.bill_to.heading }}</div>
+      {% if doc.bill_to.name %}<div class="name">{{ doc.bill_to.name }}</div>{% endif %}
+      {% for line in doc.bill_to.lines %}<div>{{ line }}</div>{% endfor %}
+    </div>
+    <div class="invoice-details">
+      <div class="label">{{ doc.details.heading }}</div>
+      {% for label, value in doc.details.rows %}<div>{{ label }}: {{ value }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <table class="items">
+    <thead>
+      <tr>
+        {% for col in doc.table.columns %}<th class="{{ col.cls }}" style="width:{{ col.w }}%">{{ col.label }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in page.rows %}
+      <tr>
+        {% for cell in row %}
+        <td class="{{ doc.table.columns[loop.index0].cls }}">{{ cell.text }}{% if cell.sub %}<span class="sub">{{ cell.sub }}</span>{% endif %}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page.show_lower %}
+  <div class="lower">
+    <div class="left-col">
+      {% for block in doc.blocks %}
+      <div class="block">
+        <div class="section-title">{{ block.title }}</div>
+        <div class="section-body">{{ block.body }}</div>
+      </div>
+      {% endfor %}
+
+      {% if doc.bank.show %}
+      <div class="bank">
+        <div class="section-title">Bank Details</div>
+        <div class="bank-content">
+          {% if doc.bank.qr %}<img class="qr" src="{{ asset_base }}{{ doc.bank.qr }}" alt="QR Code">{% endif %}
+          <div class="bank-text">
+            {% for line in doc.bank.lines %}<div>{{ line }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="amounts">
+      <div class="section-title">{{ doc.amounts_title }}</div>
+      <table>
+        {% for row in doc.amounts %}
+        <tr class="{% if row.strong %}total{% elif row.muted %}muted{% endif %}">
+          <td>{{ row.label }}</td><td>{{ row.value }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% if doc.signature.show %}
+      <div class="sign-box">
+        {% if doc.signature.image %}<div><img src="{{ asset_base }}{{ doc.signature.image }}" alt="Signature"></div>{% endif %}
+        <div>For {{ c.brand_name }}</div>
+        <div class="sign-name">{{ doc.signature.name }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if doc.notes %}<div class="notes"><strong>Note:</strong> {{ doc.notes }}</div>{% endif %}
+  {% if c.declaration %}<div class="declaration">{{ c.declaration }}</div>{% endif %}
+  {% endif %}
+
+  <div class="footer{% if c.show_page_number %} has-pageno{% endif %}">
+    {% if c.footer_text %}<div class="footer-site">{{ c.footer_text }}</div>{% endif %}
+    {% if c.footer_image %}<img class="footer-brand" src="{{ asset_base }}{{ c.footer_image }}" alt="">{% endif %}
+    {% if c.show_page_number %}<div class="page-no">{{ page.index }}</div>{% endif %}
+  </div>
+
+</div>
+{% endfor %}
