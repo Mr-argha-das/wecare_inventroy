@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ doc.title }} - {{ doc.company.brand_name }}</title>
+<style>
+{{ invoice_css }}
+:root {
+  --inv-green: {{ doc.company.invoice_color }};
+  --inv-rule: {{ doc.company.rule_color }};
+  --inv-title: {{ doc.company.title_color }};
+  --inv-link: {{ doc.company.link_color }};
+}
+@page { size: A4; margin: 0; }
+</style>
+</head>
+<body class="invoice-doc">
+{% include "documents/_invoice_pages.html" %}
+</body>
+</html>

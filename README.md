@@ -28,20 +28,23 @@ settings, backup, and global search.
 - **Reports** — daily/monthly collection, pending, service-wise, equipment rental+returns,
   cash-vs-online, profit (revenue vs cost) — all excludable-canceled, refund-aware,
   with print + PDF
-- **Documents** — 13 branded templates (invoices, receipts, statements, handover/return,
-  agreement, patient sheet, quotation) in 4 invoice styles; print CSS + real PDF (fpdf2)
-- **Template D — "We Care" green invoice (default)** — logo left / company block right,
-  green section bands, Bill To + Invoice Details, Services/Equipment table with
-  Starting Date, Till Date, Days, Price, Amount, **invoice amount in words**, payment type,
-  terms, bank details with UPI QR, amounts panel and signature — identical on screen, print and PDF
+- **Documents** — 13 document types (invoices, receipts, statements, handover/return,
+  agreement, patient sheet, quotation) sharing **one** A4 design; browser print + real PDF
+- **The We Care tax invoice** — logo left / company block right, green section bands,
+  Bill To + Invoice Details, Services/Equipment table with Starting Date, Till Date, Days,
+  Price, Amount, **invoice amount in words**, payment type, terms, bank details with UPI QR,
+  amounts panel, optional signature, page footer — millimetre-identical on screen, in print
+  and in the downloaded PDF (same layout engine, `app/services/invoice_layout.py`)
 - **WhatsApp share** — pre-filled `wa.me` message with bill/patient/amounts (honest about
   manual PDF attach — browsers can't auto-attach files)
 - **Staff & permissions** — 25 granular permissions enforced on every route + UI
 - **Activity logs** — every important action with before/after snapshots and IP
 - **Settings** — brand name/address/contact/website, **brand colour**, **invoice number prefix**,
   GST, structured bank details (bank, A/c name, A/c no, IFSC, branch), UPI ID,
-  **logo / signature image / UPI QR uploads**, terms, declaration, footer note, invoice template.
-  Every invoice created afterwards picks up the latest values automatically.
+  **logo / signature image / UPI QR / footer image uploads**, terms, declaration, footer note,
+  plus an **Invoice Design** tab (invoice heading, extra header line, footer line, invoice and
+  link colour, show/hide PO date, time, QR, page number and signature).
+  Every document printed afterwards picks up the latest values automatically.
 - **Backup** — one-click timestamped backup of Feather files + uploads
 - **Security** — bcrypt passwords, signed sessions, CSRF tokens, validation everywhere
 
@@ -97,9 +100,13 @@ app/
   dependencies.py    login/permission guards, template context
   routers/           auth, dashboard, patients, services, equipment, bills,
                      payments, reports, quotations, settings, staff, documents
-  services/          billing, payment, equipment, report, document(PDF) logic
+  services/          billing, payment, equipment, report, document logic
+                     invoice_layout.py  one A4 model for every billing document
+                     invoice_pdf.py     draws that model with fpdf2
+                     document_service.py data -> model -> HTML / PDF
   templates/         Jinja2 server-rendered UI
-  static/            css, js (vanilla), fonts, uploads
+  static/            css (incl. invoice_a4.css — the invoice stylesheet),
+                     js (vanilla), fonts, uploads
 data/                *.feather database files (+ backups/)
 documents/pdf/       saved PDFs
 logs/application.log error log
@@ -115,6 +122,7 @@ pytest -q
 
 Covers patient creation, bill numbering, service/equipment calculations, discount/tax,
 partial/full/pending payments, refunds, cancellation, duplication, issue/return,
+the invoice document model, print page, PDF download and the Invoice Design settings,
 permissions, back-date rule, deposits, and activity logging.
 
 ## Backup & restore

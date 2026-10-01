@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from .. import database as db
 from ..audit import log_activity
 from ..dependencies import require_permission, template_context
-from ..services.document_service import company_profile, document_context, generate_pdf_bytes
+from ..services.document_service import build_doc, company_profile, document_context, generate_pdf_bytes
 from ..utils import client_ip, flash, whatsapp_link
 
 router = APIRouter(tags=["documents"])
@@ -58,19 +58,22 @@ def document_home(request: Request, user: dict = Depends(require_permission("pri
 @router.get("/documents/{doc_type}/{ref_id}/print", response_class=HTMLResponse)
 def document_print(request: Request, doc_type: str, ref_id: str,
                    user: dict = Depends(require_permission("print_documents"))):
+    """Browser print view — the exact A4 design that the PDF also produces."""
     from ..main import templates
     if doc_type not in DOC_TITLES:
         flash(request, "Unknown document type.", "error")
         return RedirectResponse(url="/documents", status_code=303)
-    ctx = document_context(doc_type, ref_id)
-    if not ctx:
-        flash(request, "Document data not found.", "error")
+    doc, err = build_doc(doc_type, ref_id)
+    if not doc:
+        flash(request, err or "Document data not found.", "error")
         return RedirectResponse(url="/documents", status_code=303)
     log_activity(user=user, action="PRINT_DOCUMENT", entity_type="document", entity_id=ref_id,
-                 description=f"Printed {DOC_TITLES[doc_type]} ({ctx.get('doc_number')})", ip=client_ip(request))
+                 description=f"Printed {DOC_TITLES[doc_type]} ({doc.get('doc_number')})", ip=client_ip(request))
+    referer = str(request.headers.get("referer") or "")
+    back_url = referer if referer.startswith(str(request.base_url)) else "/documents"
     return templates.TemplateResponse(request, "documents/print.html", template_context(request, {
         "active_nav": "documents", "doc_type": doc_type, "title": DOC_TITLES[doc_type],
-        "ref_id": ref_id, "ctx": ctx,
+        "ref_id": ref_id, "doc": doc, "asset_base": "/static/uploads/", "back_url": back_url,
     }))
 
 

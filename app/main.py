@@ -101,12 +101,24 @@ def init_defaults() -> None:
                   "4. Disputes are subject to local jurisdiction."),
         "signature_name": "Authorized Signatory",
         "logo": "",
+        # --- invoice design (Settings -> Invoice Design) --------------------
+        "invoice_title": "Tax Invoice",
+        "header_note": "",
+        "footer_text": "",
+        "invoice_color": "#008d09",
+        "link_color": "#27a5d5",
+        "footer_image": "",
+        "upi_qr": "",
+        "signature_image": "",
+        "show_po_date": "1",
+        "show_time": "1",
+        "show_page_number": "1",
+        "show_qr": "1",
+        "show_signature": "0",
     }
     for key, val in defaults.items():
         if db.get_record("company_settings", key) is None:
             db.set_setting("company_settings", key, val)
-    if db.get_record("document_settings", "template") is None:
-        db.set_setting("document_settings", "template", "A")
 
 
 @app.on_event("startup")
