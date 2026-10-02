@@ -1,0 +1,25 @@
+From 243695cc4ea4455e5e5e207f9d234bc781c4e0d9 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.ai>
+Date: Fri, 2 Oct 2026 22:33:38 +0000
+Subject: [PATCH] Bump Gradle wrapper to 8.14.3 for current Flutter
+
+Flutter stable now requires Gradle >= 8.14.0; the wrapper was pinned to 8.12,
+so 'flutter build apk' failed before compiling anything. AGP 8.9.1 and Kotlin
+2.1.0 already support 8.14.x, so nothing else needs to change.
+---
+ android/gradle/wrapper/gradle-wrapper.properties | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/android/gradle/wrapper/gradle-wrapper.properties b/android/gradle/wrapper/gradle-wrapper.properties
+index ac3b479..74b269f 100644
+--- a/android/gradle/wrapper/gradle-wrapper.properties
++++ b/android/gradle/wrapper/gradle-wrapper.properties
+@@ -2,4 +2,4 @@ distributionBase=GRADLE_USER_HOME
+ distributionPath=wrapper/dists
+ zipStoreBase=GRADLE_USER_HOME
+ zipStorePath=wrapper/dists
+-distributionUrl=https\://services.gradle.org/distributions/gradle-8.12-all.zip
++distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.3-all.zip
+-- 
+2.39.5
+
