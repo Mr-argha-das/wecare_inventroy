@@ -1,0 +1,35 @@
+From 98ac3adde515a8c444a4d91e85c21377be0855a6 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.ai>
+Date: Fri, 2 Oct 2026 22:52:09 +0000
+Subject: [PATCH] Bump AGP to 8.11.1 (and google-services to 4.4.2) for current
+ Flutter
+
+Flutter stable requires AGP >= 8.11.1; the project pinned 8.9.1, so the build
+failed while applying the Flutter Gradle plugin. Gradle 8.14.3 and Kotlin 2.1.0
+already support AGP 8.11.x.
+---
+ android/settings.gradle.kts | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/android/settings.gradle.kts b/android/settings.gradle.kts
+index 1d67d29..89c7cf7 100644
+--- a/android/settings.gradle.kts
++++ b/android/settings.gradle.kts
+@@ -18,11 +18,11 @@ pluginManagement {
+ 
+ plugins {
+     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+-    id("com.android.application") version "8.9.1" apply false
+-    id("com.android.library") version "8.9.1" apply false
++    id("com.android.application") version "8.11.1" apply false
++    id("com.android.library") version "8.11.1" apply false
+     //id("com.android.application") version "8.7.3" apply false
+     // START: FlutterFire Configuration
+-    id("com.google.gms.google-services") version("4.3.15") apply false
++    id("com.google.gms.google-services") version("4.4.2") apply false
+     // END: FlutterFire Configuration
+     id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+ }
+-- 
+2.39.5
+
