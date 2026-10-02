@@ -1,0 +1,27 @@
+From 4e0a33a9c013f522abfc3617bc438115c7e144a8 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.ai>
+Date: Fri, 2 Oct 2026 23:09:37 +0000
+Subject: [PATCH] Bump Kotlin to 2.2.20 for current Flutter
+
+Last of the toolchain version gates: Flutter stable requires KGP >= 2.2.20 and
+the project pinned 2.1.0. Gradle 8.14.3 and AGP 8.11.1 both support it.
+---
+ android/settings.gradle.kts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/android/settings.gradle.kts b/android/settings.gradle.kts
+index 89c7cf7..90198e2 100644
+--- a/android/settings.gradle.kts
++++ b/android/settings.gradle.kts
+@@ -24,7 +24,7 @@ plugins {
+     // START: FlutterFire Configuration
+     id("com.google.gms.google-services") version("4.4.2") apply false
+     // END: FlutterFire Configuration
+-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
++    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+ }
+ 
+ include(":app")
+-- 
+2.39.5
+
