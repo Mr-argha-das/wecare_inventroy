@@ -1,0 +1,151 @@
+From b5c32b5a432c0bef5f65551671175f22a60be0db Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.ai>
+Date: Fri, 2 Oct 2026 22:12:14 +0000
+Subject: [PATCH] Rebrand caregiver signup as 'Apply for Job' and add APK build
+ workflow
+
+- login screen button: 'APPLY AS A CAREGIVER' -> 'APPLY FOR JOB' (work icon)
+- signup screen AppBar: 'Nurse Self Signup' -> 'Apply for Job'
+- localized title updated in all 8 languages
+- .github/workflows/build-apk.yml builds the APK on GitHub Actions
+---
+ .github/workflows/build-apk.yml   | 69 +++++++++++++++++++++++++++++++
+ lib/core/lang/app_strings.dart    | 16 +++----
+ lib/features/auth/login_page.dart |  4 +-
+ lib/features/duty/register.dart   |  2 +-
+ 4 files changed, 80 insertions(+), 11 deletions(-)
+ create mode 100644 .github/workflows/build-apk.yml
+
+diff --git a/.github/workflows/build-apk.yml b/.github/workflows/build-apk.yml
+new file mode 100644
+index 0000000..74fdf4e
+--- /dev/null
++++ b/.github/workflows/build-apk.yml
+@@ -0,0 +1,69 @@
++name: Build APK
++
++# Copy this file into the wecare-app repo at:
++#     .github/workflows/build-apk.yml
++#
++# Then: GitHub -> Actions -> "Build APK" -> Run workflow
++# When it finishes, download the APK from the run's "Artifacts" section.
++
++on:
++  push:
++    branches: [main]
++  workflow_dispatch:
++    inputs:
++      build_type:
++        description: "Which build to produce"
++        type: choice
++        default: release
++        options: [release, debug]
++
++jobs:
++  build:
++    runs-on: ubuntu-latest
++
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++
++      - name: Set up Java 17
++        uses: actions/setup-java@v4
++        with:
++          distribution: temurin
++          java-version: "17"
++
++      - name: Set up Flutter
++        uses: subosito/flutter-action@v2
++        with:
++          channel: stable
++          cache: true
++
++      - name: Flutter version
++        run: flutter --version
++
++      - name: Install dependencies
++        run: flutter pub get
++
++      - name: Analyze (non-blocking)
++        run: flutter analyze || true
++
++      - name: Build APK
++        run: |
++          if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
++            flutter build apk --debug
++          else
++            flutter build apk --release
++          fi
++
++      - name: Rename APK
++        run: |
++          mkdir -p dist
++          find build/app/outputs/flutter-apk -name "*.apk" -exec \
++            cp {} dist/wecare-${{ github.run_number }}.apk \;
++          ls -lh dist
++
++      - name: Upload APK
++        uses: actions/upload-artifact@v4
++        with:
++          name: wecare-apk-${{ github.run_number }}
++          path: dist/*.apk
++          retention-days: 30
+diff --git a/lib/core/lang/app_strings.dart b/lib/core/lang/app_strings.dart
+index bed2a08..d2a4b8b 100644
+--- a/lib/core/lang/app_strings.dart
++++ b/lib/core/lang/app_strings.dart
+@@ -4,14 +4,14 @@ import 'language_provider.dart';
+ class T {
+   static const _data = {
+     "title": {
+-      "en": "Nurse Self Signup",
+-      "hi": "नर्स पंजीकरण",
+-      "gu": "નર્સ નોંધણી",
+-      "bn": "নার্স নিবন্ধন",
+-      "mr": "नर्स नोंदणी",
+-      "ta": "செவிலியர் பதிவு",
+-      "te": "నర్స్ నమోదు",
+-      "kn": "ನರ್ಸ್ ನೋಂದಣಿ",
++      "en": "Apply for Job",
++      "hi": "नौकरी के लिए आवेदन",
++      "gu": "નોકરી માટે અરજી",
++      "bn": "চাকরির জন্য আবেদন",
++      "mr": "नोकरीसाठी अर्ज",
++      "ta": "வேலைக்கு விண்ணப்பிக்க",
++      "te": "ఉద్యోగం కోసం దరఖాస్తు",
++      "kn": "ಉದ್ಯೋಗಕ್ಕೆ ಅರ್ಜಿ",
+     },
+ 
+     "phone": {
+diff --git a/lib/features/auth/login_page.dart b/lib/features/auth/login_page.dart
+index 9cb1e64..b79e96d 100644
+--- a/lib/features/auth/login_page.dart
++++ b/lib/features/auth/login_page.dart
+@@ -380,8 +380,8 @@ class _LoginCard extends StatelessWidget {
+                 child: OutlinedButton.icon(
+                   onPressed: () =>
+                       Navigator.pushNamed(context, AppRoutes.nurseSignup),
+-                  icon: const Icon(Icons.badge_outlined),
+-                  label: const Text('APPLY AS A CAREGIVER'),
++                  icon: const Icon(Icons.work_outline),
++                  label: const Text('APPLY FOR JOB'),
+                 ),
+               ),
+               const SizedBox(height: 20),
+diff --git a/lib/features/duty/register.dart b/lib/features/duty/register.dart
+index 3594ad8..266e5fa 100644
+--- a/lib/features/duty/register.dart
++++ b/lib/features/duty/register.dart
+@@ -163,7 +163,7 @@ class _NurseSelfSignupPageState extends State<NurseSelfSignupPage> {
+   Widget build(BuildContext context) {
+     return Scaffold(
+       backgroundColor: AppTheme.primarylight,
+-      appBar: AppBar(title: const Text("Nurse Self Signup"), centerTitle: true),
++      appBar: AppBar(title: const Text("Apply for Job"), centerTitle: true),
+       body: Form(
+         key: _formKey,
+         child: SingleChildScrollView(
+-- 
+2.39.5
+
