@@ -1,0 +1,444 @@
+From 001c4f2f6321b5bb07d73adfb268986d92823e61 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.ai>
+Date: Fri, 2 Oct 2026 21:11:35 +0000
+Subject: [PATCH 1/2] Stop nurse/caretaker signups from becoming PATIENT
+ accounts
+
+/auth/send-otp created User(role=PATIENT) + PatientProfile as soon as an OTP
+was requested, so anyone who tapped Send OTP before using
+'Apply as a caregiver' was permanently a patient and /nurse/self-signup then
+failed with 'already registered as PATIENT'.
+
+- send-otp no longer creates a user; the session is parked in PendingOTP and
+  the PATIENT user is created only after a successful verify-otp
+- verify-otp self-heals legacy records and persists the FCM device token
+- nurse self-signup converts an empty auto-created PATIENT shell into a NURSE
+- VerifyOTPRequest.token is optional
+- admin nurse approve also activates the user
+- scripts/fix_nurse_patient_roles.py cleans up existing bad data
+---
+ models.py                          |  19 +++++
+ routes/auth/auth.py                |  92 ++++++++++++++++++++---
+ routes/auth/schemas.py             |   3 +-
+ routes/nurse/admin_router.py       |   9 +++
+ routes/nurse/router.py             |  42 +++++++++++
+ scripts/fix_nurse_patient_roles.py | 117 +++++++++++++++++++++++++++++
+ 6 files changed, 269 insertions(+), 13 deletions(-)
+ create mode 100644 scripts/fix_nurse_patient_roles.py
+
+diff --git a/models.py b/models.py
+index 2d3858d..0ff6ffc 100644
+--- a/models.py
++++ b/models.py
+@@ -37,6 +37,25 @@ class User(Document):
+     admin_role_name = StringField(required=False)
+     admin_permissions = ListField(StringField(), default=list)
+ 
++class PendingOTP(Document):
++    """OTP session for a phone number that has NO User yet.
++
++    Earlier /auth/send-otp created a User(role="PATIENT") as soon as an OTP was
++    requested. A nurse/caretaker who tapped "Send OTP" on the login screen before
++    using "Apply as a caregiver" therefore became a PATIENT, and her later nurse
++    signup failed with "already registered as PATIENT".
++
++    Now the OTP session is parked here and the User is only created after the OTP
++    is actually verified.
++    """
++
++    phone = StringField(required=True, unique=True)
++    otp_session = StringField(required=True)
++    created_at = DateTimeField(default=datetime.utcnow)
++
++    meta = {"collection": "pending_otp"}
++
++
+ class AboutUs(Document):
+     name = StringField()
+     designation = StringField()
+diff --git a/routes/auth/auth.py b/routes/auth/auth.py
+index 064d334..12e9c9e 100644
+--- a/routes/auth/auth.py
++++ b/routes/auth/auth.py
+@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
+ 
+ from models import (
+     DoctorProfile,
++    PendingOTP,
+     NurseProfile,
+     PatientProfile,
+     RelativeAccess,
+@@ -43,6 +44,41 @@ def ensure_patient_profile(user: User) -> None:
+     if user.role == "PATIENT" and not PatientProfile.objects(user=user).first():
+         PatientProfile(user=user, created_by="SELF").save()
+ 
++
++def save_device_token(user: User, device_token: str | None) -> None:
++    """Store the FCM token the app sends on login (it was being ignored)."""
++    if device_token and device_token.strip():
++        user.token = device_token.strip()
++
++
++def sync_role_with_profile(user: User) -> None:
++    """Fix a user whose role does not match the profile he actually has.
++
++    Legacy data: /auth/send-otp used to create every unknown phone as a PATIENT,
++    so nurses/doctors/staff could end up with role="PATIENT" and a junk,
++    auto-created PatientProfile. Here we move them back to the right role.
++    """
++    if user.role != "PATIENT" or user.id is None:
++        return
++
++    real_role = None
++    if NurseProfile.objects(user=user).first():
++        real_role = "NURSE"
++    elif DoctorProfile.objects(user=user).first():
++        real_role = "DOCTOR"
++    elif StaffProfile.objects(user=user).first():
++        real_role = "STAFF"
++
++    if not real_role:
++        return
++
++    user.role = real_role
++
++    # drop the auto-created empty patient profile, keep anything admin filled in
++    junk = PatientProfile.objects(user=user, created_by="SELF").first()
++    if junk and not (junk.age or junk.address or junk.medical_history or junk.documents):
++        junk.delete()
++
+ # @router.post("/send-otp")
+ # def send_otp(data: SendOTPRequest):
+ #     # Dev / Testing OTP
+@@ -91,15 +127,25 @@ def send_otp(data: SendOTPRequest):
+     if not otp_session:
+         raise HTTPException(400, "OTP session not received")
+ 
+-    # 🔹 Create user if not exists
++    # 🔹 Existing user → just park the OTP session on him.
++    #
++    # ⚠️ No user is created here any more. Creating a User(role="PATIENT") at
++    # send-otp time turned every nurse/caretaker who tapped "Send OTP" on the
++    # login screen into a PATIENT, which then blocked /nurse/self-signup with
++    # "already registered as PATIENT". The user is created in verify-otp.
+     user = User.objects(phone=normalized_phone).first()
+-    if not user:
+-        user = User(phone=normalized_phone, role="PATIENT")
+-
+-    user.otp_session = otp_session
+-    user.otp_verified = False
+-    user.save()
+-    ensure_patient_profile(user)
++    if user:
++        user.otp_session = otp_session
++        user.otp_verified = False
++        user.save()
++        ensure_patient_profile(user)
++    else:
++        pending = PendingOTP.objects(phone=normalized_phone).first() or PendingOTP(
++            phone=normalized_phone
++        )
++        pending.otp_session = otp_session
++        pending.created_at = datetime.utcnow()
++        pending.save()
+ 
+     return {"message": "OTP sent successfully"}
+ 
+@@ -152,19 +198,27 @@ def verify_otp(data: VerifyOTPRequest):
+     normalized_phone = normalize_phone(data.phone)
+ 
+     user = User.objects(phone=normalized_phone).first()
++    pending = None
+ 
+     if not user:
+-        raise HTTPException(404, "User not found")
++        # No User yet: the OTP was requested for a brand new phone number and is
++        # parked in PendingOTP. The User is created only after a successful
++        # verification (see below).
++        pending = PendingOTP.objects(phone=normalized_phone).first()
++        if not pending:
++            raise HTTPException(404, "User not found")
+ 
+     # 🔥 TEST LOGIN (Google Play reviewer)
+     if (
+-        (is_test_account(normalized_phone, user.role) or normalized_phone == LEGACY_TEST_PHONE)
++        user
++        and (is_test_account(normalized_phone, user.role) or normalized_phone == LEGACY_TEST_PHONE)
+         and data.otp == TEST_OTP
+     ):
+         user.otp_verified = True
+         user.otp_session = None
+         user.last_login = datetime.utcnow()
+         user.token_version += 1
++        save_device_token(user, getattr(data, "token", None))
+         user.save()
+         ensure_patient_profile(user)
+ 
+@@ -181,12 +235,14 @@ def verify_otp(data: VerifyOTPRequest):
+         }
+ 
+     # 🔹 Normal OTP Flow
+-    if not user.otp_session:
++    otp_session = user.otp_session if user else pending.otp_session
++
++    if not otp_session:
+         raise HTTPException(400, "OTP session missing. Please resend OTP")
+ 
+     params = {
+         "api_key": API_KEY,
+-        "otp_session": user.otp_session,
++        "otp_session": otp_session,
+         "otp_entered_by_user": data.otp
+     }
+ 
+@@ -204,6 +260,14 @@ def verify_otp(data: VerifyOTPRequest):
+     if status_value != "success":
+         raise HTTPException(400, response.get("Details", "Invalid OTP"))
+ 
++    # 🆕 First successful login for this phone → create the PATIENT user now.
++    if not user:
++        user = User(phone=normalized_phone, role="PATIENT")
++
++    # 🩺 Self-heal old records: a phone that already has a nurse/doctor/staff
++    # profile must never stay a PATIENT.
++    sync_role_with_profile(user)
++
+     if not user.is_active:
+         raise HTTPException(403, "User blocked")
+ 
+@@ -212,9 +276,13 @@ def verify_otp(data: VerifyOTPRequest):
+     user.otp_session = None
+     user.last_login = datetime.utcnow()
+     user.token_version += 1
++    save_device_token(user, getattr(data, "token", None))
+     user.save()
+     ensure_patient_profile(user)
+ 
++    if pending:
++        pending.delete()
++
+     token = create_access_token(
+         {"user_id": str(user.id), "role": user.role},
+         user.token_version
+diff --git a/routes/auth/schemas.py b/routes/auth/schemas.py
+index 293962d..22c95ba 100644
+--- a/routes/auth/schemas.py
++++ b/routes/auth/schemas.py
+@@ -7,7 +7,8 @@ class SendOTPRequest(BaseModel):
+ class VerifyOTPRequest(BaseModel):
+     phone: str
+     otp: str
+-    token : str
++    # FCM device token. Optional: the app sends "" when Firebase gives no token.
++    token: str | None = None
+ 
+ class PasswordLoginRequest(BaseModel):
+     phone: str
+diff --git a/routes/nurse/admin_router.py b/routes/nurse/admin_router.py
+index ec75857..6785e30 100644
+--- a/routes/nurse/admin_router.py
++++ b/routes/nurse/admin_router.py
+@@ -18,8 +18,17 @@ router = APIRouter(prefix="/admin/nurse", tags=["Admin-Nurse"])
+ @router.post("/approve")
+ def approve_nurse(nurse_id: str, admin=Depends(admin_required)):
+     nurse = NurseProfile.objects(id=nurse_id).first()
++    if not nurse:
++        raise HTTPException(404, "Nurse not found")
+     nurse.verification_status = "APPROVED"
+     nurse.save()
++
++    # Self-signup creates the user with is_active=False, so approving must also
++    # unblock the login (verify-otp returns 403 "User blocked" otherwise).
++    if nurse.user and not nurse.user.is_active:
++        nurse.user.is_active = True
++        nurse.user.save()
++
+     return {"message": "Nurse approved"}
+ 
+ @router.post("/reject")
+diff --git a/routes/nurse/router.py b/routes/nurse/router.py
+index 02eeaba..13a38af 100644
+--- a/routes/nurse/router.py
++++ b/routes/nurse/router.py
+@@ -134,6 +134,33 @@ def normalize_phone(phone: str | None) -> str | None:
+         return None
+     return phone.strip().replace("+91", "").replace(" ", "").replace("-", "")
+ 
++
++def _is_empty_patient_shell(user) -> bool:
++    """True when this PATIENT account was only auto-created by an OTP request.
++
++    Such an account carries no real patient data (no admin-created profile, no
++    duties / notes / vitals). It is safe to convert it into a NURSE account.
++    """
++    if PatientProfile.objects(user=user, created_by="ADMIN").first():
++        return False
++
++    profile = PatientProfile.objects(user=user).first()
++    if profile:
++        if (
++            profile.age
++            or profile.address
++            or profile.medical_history
++            or profile.documents
++            or profile.assigned_doctor
++            or profile.assigned_caretaker
++            or profile.service_start
++        ):
++            return False
++        if NurseDuty.objects(patient=profile).first():
++            return False
++
++    return True
++
+ class NurseSelfSignupRequest(BaseModel):
+     # -------- USER --------
+     phone: str = Field(..., example="9876543210")
+@@ -204,6 +231,21 @@ def nurse_self_signup(payload: NurseSelfSignupRequest):
+         # 🔁 EXISTING USER
+         # ============================================================
+         if existing_user:
++            # 🩹 A phone that only ever requested an OTP used to be stored as a
++            # PATIENT (old /auth/send-otp behaviour). That shell account must not
++            # block a genuine caregiver signup → convert it to NURSE instead of
++            # throwing "already registered as PATIENT".
++            if existing_user.role == "PATIENT" and _is_empty_patient_shell(existing_user):
++                PatientProfile.objects(user=existing_user, created_by="SELF").delete()
++                existing_user.role = "NURSE"
++                existing_user.name = payload.name or existing_user.name
++                existing_user.father_name = payload.father_name or existing_user.father_name
++                existing_user.email = payload.email or existing_user.email
++                existing_user.other_number = payload.other_number or existing_user.other_number
++                existing_user.password_hash = existing_user.password_hash or payload.phone
++                existing_user.is_active = False
++                existing_user.save()
++
+             if existing_user.role != "NURSE":
+                 raise HTTPException(
+                     status_code=400,
+diff --git a/scripts/fix_nurse_patient_roles.py b/scripts/fix_nurse_patient_roles.py
+new file mode 100644
+index 0000000..c91ecdf
+--- /dev/null
++++ b/scripts/fix_nurse_patient_roles.py
+@@ -0,0 +1,117 @@
++"""One-time cleanup for users that /auth/send-otp wrongly created as PATIENT.
++
++Old behaviour: requesting an OTP created `User(role="PATIENT")` + an empty
++`PatientProfile` immediately. Nurses/caretakers/doctors/staff who typed their
++phone on the login screen before signing up therefore became PATIENTs.
++
++What this script does:
++  1. Any PATIENT user that already has a Nurse/Doctor/Staff profile  -> role fixed
++     and the junk auto-created PatientProfile removed.
++  2. Any PATIENT user with no name, no real profile data and no activity
++     -> reported as junk (deleted only with --delete-junk).
++
++Usage:
++    python -m scripts.fix_nurse_patient_roles              # dry run (safe)
++    python -m scripts.fix_nurse_patient_roles --apply      # fix roles
++    python -m scripts.fix_nurse_patient_roles --apply --delete-junk
++"""
++
++import argparse
++import sys
++
++from core.database import init_db
++from models import (
++    DoctorProfile,
++    NurseDuty,
++    NurseProfile,
++    PatientProfile,
++    StaffProfile,
++    User,
++)
++
++
++def profile_has_data(profile) -> bool:
++    if not profile:
++        return False
++    return bool(
++        profile.age
++        or profile.address
++        or profile.medical_history
++        or profile.documents
++        or profile.assigned_doctor
++        or profile.assigned_caretaker
++        or profile.service_start
++        or profile.created_by == "ADMIN"
++    )
++
++
++def real_role_of(user):
++    if NurseProfile.objects(user=user).first():
++        return "NURSE"
++    if DoctorProfile.objects(user=user).first():
++        return "DOCTOR"
++    if StaffProfile.objects(user=user).first():
++        return "STAFF"
++    return None
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--apply", action="store_true", help="write changes")
++    parser.add_argument(
++        "--delete-junk",
++        action="store_true",
++        help="also delete empty PATIENT accounts created by stray OTP requests",
++    )
++    args = parser.parse_args()
++
++    init_db()
++
++    fixed, junk = [], []
++
++    for user in User.objects(role="PATIENT"):
++        profile = PatientProfile.objects(user=user).first()
++        role = real_role_of(user)
++
++        if role:
++            fixed.append((user, role, profile))
++            continue
++
++        if not (user.name or "").strip() and not profile_has_data(profile):
++            if profile and NurseDuty.objects(patient=profile).first():
++                continue
++            junk.append((user, profile))
++
++    print(f"Role mismatches (PATIENT but actually something else): {len(fixed)}")
++    for user, role, _ in fixed:
++        print(f"  {user.phone:<15} PATIENT -> {role}")
++
++    print(f"\nEmpty PATIENT shells from stray OTP requests: {len(junk)}")
++    for user, _ in junk:
++        print(f"  {user.phone}")
++
++    if not args.apply:
++        print("\nDry run. Re-run with --apply to write the changes.")
++        return 0
++
++    for user, role, profile in fixed:
++        user.role = role
++        user.save()
++        if profile and not profile_has_data(profile):
++            profile.delete()
++    print(f"\n✅ Fixed {len(fixed)} roles")
++
++    if args.delete_junk:
++        for user, profile in junk:
++            if profile:
++                profile.delete()
++            user.delete()
++        print(f"🧹 Deleted {len(junk)} empty PATIENT accounts")
++    else:
++        print("ℹ️  Junk accounts kept (pass --delete-junk to remove them)")
++
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+-- 
+2.39.5
+

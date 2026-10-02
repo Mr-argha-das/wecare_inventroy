@@ -1,0 +1,83 @@
+From f33782c5d93dd596220621ca89050580ad4d0490 Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.ai>
+Date: Fri, 2 Oct 2026 21:11:35 +0000
+Subject: [PATCH 2/2] Show patient relative name in Equipment Assign list
+
+Added a 'Relative Name' column (also searchable) to the assigned equipment
+table and exposed PatientProfile.relative_name from
+/equipment/request-equipment/all.
+---
+ routes/patient/router.py              | 1 +
+ templates/admin/equipment_assign.html | 9 ++++++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/routes/patient/router.py b/routes/patient/router.py
+index d91ff11..a4ce599 100644
+--- a/routes/patient/router.py
++++ b/routes/patient/router.py
+@@ -1249,6 +1249,7 @@ def get_all_requests():
+             "patient_id": str(patient.id) if patient else "",
+             "patient_name": getattr(patient_user, "name", "") if patient_user else "",
+             "patient_phone": getattr(patient_user, "phone", "") if patient_user else "",
++            "relative_name": getattr(patient, "relative_name", "") if patient else "",
+             # Backward-compatible aliases used by older admin templates.
+             "equipment_phone": getattr(patient_user, "phone", "") if patient_user else "",
+             "ward": getattr(patient, "address", "") if patient else "",
+diff --git a/templates/admin/equipment_assign.html b/templates/admin/equipment_assign.html
+index d16d8c3..3d83bf5 100644
+--- a/templates/admin/equipment_assign.html
++++ b/templates/admin/equipment_assign.html
+@@ -101,6 +101,7 @@
+           <tr>
+             <th>Date</th>
+             <th>Patient</th>
++            <th>Relative Name</th>
+             <th>Mobile</th>
+             <th>Equipment</th>
+             <th>Days</th>
+@@ -113,7 +114,7 @@
+           </tr>
+         </thead>
+         <tbody id="assignTable">
+-          <tr><td colspan="11" class="text-center text-muted">Loading...</td></tr>
++          <tr><td colspan="12" class="text-center text-muted">Loading...</td></tr>
+         </tbody>
+       </table>
+     </div>
+@@ -353,7 +354,7 @@ function loadAssignments() {
+     })
+     .catch(() => {
+       document.getElementById("assignTable").innerHTML =
+-        '<tr><td colspan="11" class="text-center text-danger">Load nahi ho paya</td></tr>';
++        '<tr><td colspan="12" class="text-center text-danger">Load nahi ho paya</td></tr>';
+     });
+ }
+ 
+@@ -361,6 +362,7 @@ function searchAssignments() {
+   const q = document.getElementById("searchInput").value.toLowerCase();
+   const filtered = assignments.filter(a =>
+     (a.patient_name || "").toLowerCase().includes(q) ||
++    (a.relative_name || "").toLowerCase().includes(q) ||
+     (a.equipment_title || "").toLowerCase().includes(q) ||
+     (a.patient_phone || "").includes(q)
+   );
+@@ -372,7 +374,7 @@ function renderAssignments(data) {
+   tbody.innerHTML = "";
+ 
+   if (!data.length) {
+-    tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Koi equipment assign nahi hui</td></tr>';
++    tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">Koi equipment assign nahi hui</td></tr>';
+     document.getElementById("grandTotalBadge").style.display = "none";
+     return;
+   }
+@@ -390,6 +392,7 @@ function renderAssignments(data) {
+       <tr>
+         <td class="text-nowrap">${formatDate(a.request_time)}</td>
+         <td class="fw-semibold">${a.patient_name || "—"}</td>
++        <td>${a.relative_name || "—"}</td>
+         <td class="text-nowrap">${a.patient_phone || "—"}</td>
+         <td>${a.equipment_title || "—"}</td>
+         <td>${a.day_duration || 1}</td>
+-- 
+2.39.5
+
