@@ -1,0 +1,36 @@
+From 5f64259afc0e868f4e46efe21c9804f78e47dc1a Mon Sep 17 00:00:00 2001
+From: Arena Agent <agent@arena.ai>
+Date: Fri, 2 Oct 2026 22:25:12 +0000
+Subject: [PATCH] Fix APK build: drop hardcoded macOS JDK path from
+ gradle.properties
+
+org.gradle.java.home pointed at /opt/homebrew/opt/openjdk@17/... which only
+exists on one developer's Mac, so Gradle failed with 'Java home supplied is
+invalid' on CI and on every other machine. Gradle now uses JAVA_HOME.
+Also lowered jvmargs from 8G/4G to 4G/2G so the build fits a CI runner.
+---
+ android/gradle.properties | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/android/gradle.properties b/android/gradle.properties
+index 19ee14c..0ca9715 100644
+--- a/android/gradle.properties
++++ b/android/gradle.properties
+@@ -1,8 +1,12 @@
+-org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=4G -XX:ReservedCodeCacheSize=512m -XX:+HeapDumpOnOutOfMemoryError
++org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+HeapDumpOnOutOfMemoryError
+ android.useAndroidX=true
+ android.enableJetifier=true
+ androidx.core.version=1.13.1
+ androidx.activity.version=1.9.0
+ androidx.lifecycle.version=2.8.4
+ 
+-org.gradle.java.home=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
++# org.gradle.java.home intentionally NOT set here.
++# It used to point at one developer's macOS JDK
++# (/opt/homebrew/opt/openjdk@17/...), which broke every other machine and the
++# CI build. Gradle picks up JAVA_HOME instead; set org.gradle.java.home in your
++# own ~/.gradle/gradle.properties if you need a specific JDK locally.
+-- 
+2.39.5
+
